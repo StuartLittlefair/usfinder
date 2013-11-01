@@ -37,8 +37,7 @@
     	</jar>
     </target>
     
-    <!--
-    <target name="jar" depends="compile">
+    <target name="onejar" depends="compile">
         <mkdir dir="${jar.dir}"/>
         <one-jar destfile="${jar.dir}/${ant.project.name}.jar" onejarmainclass="${main-class}">
 			<main>
@@ -52,7 +51,6 @@
 			</manifest>
         </one-jar>
     </target>
-    -->
     
     <target name="run" depends="jar">
         <java jar="${jar.dir}/${ant.project.name}.jar" fork="true"/>

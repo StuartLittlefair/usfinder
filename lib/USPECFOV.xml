@@ -48,36 +48,6 @@
 			</TABLE>
 			<PARAM name="color" value="red" />
 		</RESOURCE>
-		<RESOURCE ID="SLIT" name="SLIT">
-			<DESCRIPTION>The slit</DESCRIPTION>
-			<PARAM ShortDescription="Slit" />
-			<TABLE ID="SLIT" name="SLIT">
-				<PARAM name="Region" value="Polygon" />
-				<FIELD ID="VXO" name="VertexXOffset" datatype="float" unit="arcsec" utype="stc:AstroCoordArea/Region/reg:Polygon/Vertex/Position[1]" />
-				<FIELD ID="VYO" name="VertexYOffset" datatype="float" unit="arcsec" utype="stc:AstroCoordArea/Region/reg:Polygon/Vertex/Position[2]" />
-				<DATA>
-				<TABLEDATA>
-					<TR>
-						<TD>0.3</TD>
-						<TD>70.656</TD>
-					</TR>
-					<TR>
-						<TD>-0.3</TD>
-						<TD>70.656</TD>
-					</TR>
-					<TR>
-						<TD>-0.3</TD>
-						<TD>-70.656</TD>
-					</TR>
-					<TR>
-						<TD>0.3</TD>
-						<TD>-70.656</TD>
-					</TR>
-				</TABLEDATA>
-				</DATA>
-			</TABLE>
-			<PARAM name="color" value="blue" />
-		</RESOURCE>
 
 		<!-- end of the main Ultracam chip -->
 </RESOURCE>

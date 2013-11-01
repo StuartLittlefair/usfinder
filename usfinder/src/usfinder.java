@@ -38,7 +38,7 @@ public class usfinder extends JFrame implements VOApp,
         
     // Default Telescope data. See the class for a full description of the fields        
     private static final Telescope TELESCOPE_DATA = 
-        new Telescope("NTT", new double[] {26.54, 28.35, 27.69, 27.55, 26.71}, 0.1055, false, 270.0, 5.8025, 4.431, 544.0);
+    	new Telescope("TNO",    new double[] {22.71, 25.25, 25.01, 24.69, 23.81}, 0.45, false, 270.0, 5.8025, 4.431);
         
     final Preferences _telPref = Preferences.userNodeForPackage(this.getClass());
 
@@ -218,7 +218,6 @@ public class usfinder extends JFrame implements VOApp,
         _telescope.delta_pa   = _telPref.getDouble("Delta PA", TELESCOPE_DATA.delta_pa);
         _telescope.delta_x    = _telPref.getDouble("Delta X",  TELESCOPE_DATA.delta_x);
         _telescope.delta_y    = _telPref.getDouble("Delta Y",  TELESCOPE_DATA.delta_y);
-        _telescope.slit_x     = _telPref.getDouble("Slit X",   TELESCOPE_DATA.slit_x);
         boolean new_flipped = _telescope.flipped;
         if(old_flipped != new_flipped && aladin != null){
             aladin.execCommand("flipflop H");
@@ -245,7 +244,6 @@ public class usfinder extends JFrame implements VOApp,
             decText = decDegVal.getText() + ":" + decMinVal.getText() + ":" + decSecVal.getText();
             FOV.setCentre(raText, decText);
             FOV.setPA(String.valueOf(paDegVal.getValue()), _telescope);
-            FOV.setSlit(_telescope);
         } catch (Exception e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
@@ -1071,7 +1069,6 @@ private JMenu createTelMenu() {
 					       final JTextField paField = new JTextField(15);
 					       final JTextField dxField = new JTextField(15);
 					       final JTextField dyField = new JTextField(15);
-					       final JTextField sxField = new JTextField(15);
 					       final JTextField psField = new JTextField(15);
                                                
 					       final JRadioButton flipyes = new JRadioButton("Yes");
@@ -1130,11 +1127,6 @@ private JMenu createTelMenu() {
 							       telSync();
 							       FOVSync();                                                  
 							   }
-							   if(e.getActionCommand().equals("sx")){
-							       _telPref.putDouble("Slit X",Double.parseDouble(sxField.getText()));
-							       telSync();
-							       FOVSync();                                                  
-							   }
 						       }
 						   };        
 					       
@@ -1167,11 +1159,6 @@ private JMenu createTelMenu() {
 					       dyField.addActionListener(onEntry);
 					       JLabel dyLabel = new JLabel("Delta Y: ");
 					       
-					       sxField.setText(round(_telPref.getDouble("Slit X", _telescope.slit_x),3));
-					       sxField.setToolTipText("X Position of slit center (in pixels)");
-					       sxField.setActionCommand("sx");
-					       sxField.addActionListener(onEntry);
-					       JLabel sxLabel = new JLabel("Slit X: ");
                                                
 					       JButton closeButton = new JButton("Close");
 					       closeButton.setActionCommand("close");
@@ -1192,9 +1179,7 @@ private JMenu createTelMenu() {
 					       addComponent(newPanel, dxField, xpos--, ypos++, 2, 1, GridBagConstraints.NONE, GridBagConstraints.CENTER);
 					       addComponent(newPanel, dyLabel, xpos++, ypos, 1, 1, GridBagConstraints.NONE, GridBagConstraints.CENTER);
 					       addComponent(newPanel, dyField, xpos--, ypos++, 2, 1, GridBagConstraints.NONE, GridBagConstraints.CENTER);
-					       addComponent(newPanel, sxLabel, xpos++, ypos, 1, 1, GridBagConstraints.NONE, GridBagConstraints.CENTER);
-					       addComponent(newPanel, sxField, xpos--, ypos++, 2, 1, GridBagConstraints.NONE, GridBagConstraints.CENTER);
-                                               
+                   
 					       addComponent(newPanel, closeButton, xpos, ++ypos, 3, 1, GridBagConstraints.NONE, GridBagConstraints.CENTER);
                                                
 					       newframe.add(newPanel);
@@ -1610,8 +1595,7 @@ private JMenu createFileMenu() {
 	_telescope.flipped    = _telPref.getBoolean("Flip E-W", TELESCOPE_DATA.flipped);
 	_telescope.delta_pa   = _telPref.getDouble("Delta PA", TELESCOPE_DATA.delta_pa);
 	_telescope.delta_x    = _telPref.getDouble("Delta X",  TELESCOPE_DATA.delta_x);
-	_telescope.delta_y    = _telPref.getDouble("Delta Y",  TELESCOPE_DATA.delta_y);
-	_telescope.slit_x     = _telPref.getDouble("Slit X",   TELESCOPE_DATA.slit_x);    
+	_telescope.delta_y    = _telPref.getDouble("Delta Y",  TELESCOPE_DATA.delta_y);   
     }
     //------------------------------------------------------------------------------------------------------------------------------------------
 
