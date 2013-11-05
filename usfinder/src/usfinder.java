@@ -38,7 +38,7 @@ public class usfinder extends JFrame implements VOApp,
         
     // Default Telescope data. See the class for a full description of the fields        
     private static final Telescope TELESCOPE_DATA = 
-    	new Telescope("TNO",    new double[] {22.71, 25.25, 25.01, 24.69, 23.81}, 0.45, false, 270.0, 5.8025, 4.431);
+    	new Telescope("TNO",    new double[] {22.71, 25.25, 25.01, 24.69, 23.81}, 0.45, false, 270.0, 5.8025, 4.431, false);
     // persistent preferences used for changing telescope parameters    
     final Preferences _telPref = Preferences.userNodeForPackage(this.getClass());
     // The following are used to pass the telescope data around
@@ -169,7 +169,7 @@ public class usfinder extends JFrame implements VOApp,
     
     // Standard number of windows 
     private int numWin = 2;
-    private IntegerTextField numWinText = new IntegerTextField(numWin, 1, 4, 1, "Number of windows", true, DEFAULT_COLOUR, ERROR_COLOUR, 2);
+    private IntegerTextField numWinText = new IntegerTextField(numWin, 0, 4, 1, "Number of windows", true, DEFAULT_COLOUR, ERROR_COLOUR, 2);
 
     // High voltage gain
     private int hvGain = 0;
@@ -272,6 +272,7 @@ public class usfinder extends JFrame implements VOApp,
         _telescope.delta_pa   = _telPref.getDouble("Delta PA", TELESCOPE_DATA.delta_pa);
         _telescope.delta_x    = _telPref.getDouble("Delta X",  TELESCOPE_DATA.delta_x);
         _telescope.delta_y    = _telPref.getDouble("Delta Y",  TELESCOPE_DATA.delta_y);
+        _telescope.eastofnorth = _telPref.getBoolean("East of North", TELESCOPE_DATA.eastofnorth);
         boolean new_flipped = _telescope.flipped;
         if(old_flipped != new_flipped && aladin != null){
             aladin.execCommand("flipflop H");
@@ -310,7 +311,11 @@ public class usfinder extends JFrame implements VOApp,
             raText = raHourVal.getText() + ":" + raMinVal.getText() + ":" + String.valueOf(raSecVal.getValue());
             decText = decDegVal.getText() + ":" + decMinVal.getText() + ":" + decSecVal.getText();
             FOV.setCentre(raText, decText);
-            FOV.setPA(String.valueOf(paDegVal.getValue()), _telescope);
+            if(_telescope.eastofnorth){
+				FOV.setPA(String.valueOf(paDegVal.getValue()), _telescope);
+			}else{
+				FOV.setPA(String.valueOf(-paDegVal.getValue()), _telescope);
+			}
         } catch (Exception e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
@@ -680,23 +685,43 @@ public class usfinder extends JFrame implements VOApp,
 			g2d.drawString(string,width-w-10,ypos+=h);
 			}
 			ypos+=h/2;
-			if(numEnable >0){
-			String string = "ystart  xstart   nx  ny";
-			int w = fontMetrics.stringWidth(string);
-			g2d.drawString(string,width-w-10,ypos+=h);
-			}
-			for(int i=0; i<numEnable; i++){
-			try{
-				String string = ""+_singleWindows.getYstart(i)+ "   " +
-				_singleWindows.getXstart(i)    + "  " + 
-				_singleWindows.getNx(i)        + "  " +
-				_singleWindows.getNy(i);
-				int w = fontMetrics.stringWidth(string);
-				g2d.drawString(string,width-w-10,ypos+=h);
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
-			}
+			
+			// drift mode y/n?
+			boolean isDriftMode = driftModeEnabled.isSelected();
+			if(isDriftMode){
+				try{
+					String string = "ystart   xleft   xright  nx  ny";
+					int w = fontMetrics.stringWidth(string);
+					g2d.drawString(string,width-w-10,ypos+=h);
+					string = ""+_windowPairs.getYstart(0)+" " +
+					_windowPairs.getXleft(0) + "  " +
+					_windowPairs.getXright(0) + "  " +
+					_windowPairs.getNx(0) + "  " +
+					_windowPairs.getNy(0);
+					w = fontMetrics.stringWidth(string);
+					g2d.drawString(string,width-w-10,ypos+=h);
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+			}else{
+				if(numEnable >0){
+					String string = "xstart  ystart   nx  ny";
+					int w = fontMetrics.stringWidth(string);
+					g2d.drawString(string,width-w-10,ypos+=h);
+				}
+				for(int i=0; i<numEnable; i++){
+					try{
+						String string = ""+_singleWindows.getXstart(i)+ "   " +
+						_singleWindows.getYstart(i)    + "  " + 
+						_singleWindows.getNx(i)        + "  " +
+						_singleWindows.getNy(i);
+						int w = fontMetrics.stringWidth(string);
+						g2d.drawString(string,width-w-10,ypos+=h);
+					} catch (Exception e) {
+						e.printStackTrace();
+					}
+				}
+			}						
 			g2d.dispose();
 		
 			// allow use to output image
@@ -1204,7 +1229,19 @@ private JMenu createTelMenu() {
 					       ButtonGroup group = new ButtonGroup();
 					       group.add(flipyes);
 					       group.add(flipno);
-                                               
+                           
+        				   final JRadioButton enyes = new JRadioButton("Yes");
+					       final JRadioButton enno  = new JRadioButton("No");
+					       if(_telPref.getBoolean("East of North",TELESCOPE_DATA.eastofnorth)){
+						   enyes.setSelected(true);
+					       }else{
+						   enno.setSelected(true);
+					       }  
+					       JLabel enLabel = new JLabel("E of N: ");
+					       ButtonGroup group2 = new ButtonGroup();
+					       group2.add(enyes);
+					       group2.add(enno);   
+					                      
 					       final JTextField nameField = new JTextField(_telPref.get("Name", _telescope.name),15);
 					       JLabel nameLabel = new JLabel("Name: ");
                                                
@@ -1234,6 +1271,16 @@ private JMenu createTelMenu() {
 							       telSync();
 							       FOVSync();                                                  
 							   }
+							   if(e.getActionCommand().equals("enyes")){
+							       _telPref.putBoolean("East of North",true);
+							       telSync();
+							       FOVSync();                                                  
+							   }
+							   if(e.getActionCommand().equals("enno")){
+							       _telPref.putBoolean("East of North",false);
+							       telSync();
+							       FOVSync();                                                  
+							   }
 							   if(e.getActionCommand().equals("pa")){
 							       _telPref.putDouble("Delta PA",Double.parseDouble(paField.getText()));
 							       telSync();
@@ -1256,6 +1303,11 @@ private JMenu createTelMenu() {
 					       flipyes.addActionListener(onEntry);
 					       flipno.setActionCommand("noflip");
 					       flipno.addActionListener(onEntry);
+
+					       enyes.setActionCommand("enyes");
+					       enyes.addActionListener(onEntry);
+					       enno.setActionCommand("enno");
+					       enno.addActionListener(onEntry);
                                                
 					       psField.setText(round(_telPref.getDouble("Plate Scale", _telescope.plateScale),3));
 					       psField.setToolTipText("Plate scale (in arcseconds)");
@@ -1293,6 +1345,10 @@ private JMenu createTelMenu() {
 					       addComponent(newPanel, flipyes, xpos++, ypos, 1, 1, GridBagConstraints.NONE, GridBagConstraints.CENTER);
 					       addComponent(newPanel, flipno, xpos, ypos++, 1, 1, GridBagConstraints.NONE, GridBagConstraints.CENTER);
 					       xpos -= 2;
+					       addComponent(newPanel, enLabel, xpos++, ypos, 1, 1, GridBagConstraints.NONE, GridBagConstraints.CENTER);
+					       addComponent(newPanel, enyes, xpos++, ypos, 1, 1, GridBagConstraints.NONE, GridBagConstraints.CENTER);
+					       addComponent(newPanel, enno, xpos, ypos++, 1, 1, GridBagConstraints.NONE, GridBagConstraints.CENTER);
+					       xpos -= 2;					       
 					       addComponent(newPanel, psLabel, xpos++, ypos, 1, 1, GridBagConstraints.NONE, GridBagConstraints.CENTER);
 					       addComponent(newPanel, psField, xpos--, ypos++, 2, 1, GridBagConstraints.NONE, GridBagConstraints.CENTER);
 					       addComponent(newPanel, paLabel, xpos++, ypos, 1, 1, GridBagConstraints.NONE, GridBagConstraints.CENTER);
@@ -1491,25 +1547,36 @@ private JMenu createFileMenu() {
 		double[] ystart = new double[4];
 		double[] xsize  = new double[4];
 		double[] ysize  = new double[4];
-		for(int np=0; np<numEnable; np++){
-		    xstart[np] = _singleWindows.getXstart(np);
-		    ystart[np] = _singleWindows.getYstart(np);
-		    xsize[np]  = _singleWindows.getNx(np);
-		    ysize[np]  = _singleWindows.getNy(np);
+		if(numEnable == 0){
+			xstart[0] = 1;
+			ystart[0] = 1;
+			xsize[0] = 1056;
+			ysize[0] = 1072;
+		}else{
+			for(int np=0; np<numEnable; np++){
+				xstart[np] = _singleWindows.getXstart(np);
+				ystart[np] = _singleWindows.getYstart(np);
+				xsize[np]  = _singleWindows.getNx(np);
+				ysize[np]  = _singleWindows.getNy(np);
+			}
 		}
 		// alternatives for drift mode
-                double dxleft, dxright, dystart, dxsize, dysize;
-                dxleft  = _windowPairs.getXleft(0);
-                dxright = _windowPairs.getXright(0);
-                dystart = _windowPairs.getYstart(0);
-                dxsize = _windowPairs.getNx(0);
-                dysize = _windowPairs.getNy(0);
+		double dxleft, dxright, dystart, dxsize, dysize;
+		dxleft  = _windowPairs.getXleft(0);
+		dxright = _windowPairs.getXright(0);
+		dystart = _windowPairs.getYstart(0);
+		dxsize = _windowPairs.getNx(0);
+		dysize = _windowPairs.getNy(0);
 
 		if(lnormal){
 		    // normal mode convert xstart by ignoring 16 overscan pixels
-		    for(int np=0; np<numEnable; np++){
-                        xstart[np] += 16;
-                    }
+		    if(numEnable==0){
+		    	xstart[0] += 16;
+		    }else{
+				for(int np=0; np<numEnable; np++){
+							xstart[np] += 16;
+				}
+            }
 		    dxleft += 16;
 		    dxright += 16;
 		}else{
@@ -1560,76 +1627,110 @@ private JMenu createFileMenu() {
 
 		// calculate the yshift, which places windows adjacent to the serial register
 		// edited here to allow >2 windows - SL (18/7/2012)
-                double[] yshift = new double[numEnable];
-		for (int np=0; np<numEnable; np++) yshift[np]=0.0;
-                if(isDriftMode){
-                        yshift[0]=(dystart-1.0)*VCLOCK;
-                }else{
-                        yshift[0]=(ystart[0]-1.0)*VCLOCK;
-                        for (int np=1; np<numEnable; np++){
-                                yshift[np] = (ystart[np]-ystart[np-1]-ysize[np-1])*VCLOCK;
-                        }
-                }
-		
-		
+		double[] yshift = null;
+		if(numEnable == 0){
+			yshift = new double[1];
+			yshift[0] = 0.0;
+		}else{
+			yshift = new double[numEnable];
+			for (int np=0; np<numEnable; np++) yshift[np]=0.0;
+		}
+		if(isDriftMode){
+			yshift[0]=(dystart-1.0)*VCLOCK;
+		}else{
+			yshift[0]=(ystart[0]-1.0)*VCLOCK;
+			for (int np=1; np<numEnable; np++){
+				yshift[np] = (ystart[np]-ystart[np-1]-ysize[np-1])*VCLOCK;
+			}
+		}
+				
 		/* After placing the window adjacent to the serial register, the register must be cleared
 		   by clocking out the entire register, taking FFX hclocks (we no longer open the dump gates,
 		   which took only 8 hclock cycles to complete, but gave ramps and bright rows
 		   in the bias). We think dave does 2*FFX hclocks in avalanche mode, but need
 		   to check this with him.
 		*/
-		double[] line_clear = new double[numEnable];
-		for(int np=0; np<numEnable; np++) line_clear[np]=0.0;
+		double[] line_clear = null;
+		if(numEnable==0){
+			line_clear = new double[1];
+			line_clear[0] = 0.0;
+		}else{
+			line_clear = new double[numEnable];
+			for(int np=0; np<numEnable; np++) line_clear[np]=0.0;
+		}
 		double hclockFactor = 1.0;
 		if(! lnormal){
 		    hclockFactor = 2.0;
 		}
-                if(isDriftMode){
+        if(isDriftMode){
 		    if(yshift[0] != 0) line_clear[0] = hclockFactor*FFX*HCLOCK;
-                }else{
-		    for(int np=0; np<numEnable; np++){
-			if(yshift[np] != 0) line_clear[np] = hclockFactor*FFX*HCLOCK;
+        }else{
+        	if(yshift[0] != 0) line_clear[0] = hclockFactor*FFX*HCLOCK;
+		    for(int np=1; np<numEnable; np++){
+				if(yshift[np] != 0) line_clear[np] = hclockFactor*FFX*HCLOCK;
 		    }
-                }
+		}
 
 		// calculate how long it takes to shift one row into the serial register
 		// shift along serial register and then read out the data. The charge in a row
 		// after a window used to be dumped, taking 8 HCLOCK cycles. This created ramps 
 		// and bright rows/columns in the images, so was removed.
-		int[] numhclocks = new int[numEnable];
-		for(int np=0; np<numEnable; np++) numhclocks[np] = 0;		  
+		int[] numhclocks = null;
+		if(numEnable==0){
+			numhclocks = new int[1];
+		}else{
+			numhclocks = new int[numEnable];
+		}
+		numhclocks[0] = 0;
+		for(int np=1; np<numEnable; np++) numhclocks[np] = 0;		  
 		if(isDriftMode){
 		    numhclocks[0] = FFX;
 		    if (!lnormal) numhclocks[0] += AVALANCHE_PIXELS;
 		}else{
-		    for(int np=0; np<numEnable; np++){
-			numhclocks[np] = FFX;
-			if(! lnormal) numhclocks[np] += AVALANCHE_PIXELS;
+			numhclocks[0] = FFX;
+			if(!lnormal) numhclocks[0] += AVALANCHE_PIXELS;
+		    for(int np=1; np<numEnable; np++){
+				numhclocks[np] = FFX;
+				if(! lnormal) numhclocks[np] += AVALANCHE_PIXELS;
 		    }
 		}
 
 		// edited here to allow >2 windows - SL (18/7/2012)
-                double[] line_read  = new double[numEnable];
-		for(int np=0; np<numEnable; np++) line_read[np]=0.0;
-                if(isDriftMode){
-                        line_read[0] = VCLOCK*ybin + numhclocks[0]*HCLOCK + video*2.0*dxsize/xbin;
-                }else{
-                        for(int np=0; np<numEnable; np++){
-                                line_read[np] = (VCLOCK*ybin) + (numhclocks[np]*HCLOCK) + (video*xsize[np]/xbin);
-                        }
-                }
+		double[] line_read = null;
+		if(numEnable == 0){
+			line_read = new double[1];
+		}else{
+			line_read  = new double[numEnable];
+		}
+		line_read[0] = 0.0;
+		for(int np=1; np<numEnable; np++) line_read[np]=0.0;
+		if(isDriftMode){
+			line_read[0] = VCLOCK*ybin + numhclocks[0]*HCLOCK + video*2.0*dxsize/xbin;
+		}else{
+			line_read[0] = (VCLOCK*ybin) + (numhclocks[0]*HCLOCK) + (video*xsize[0]/xbin);
+			for(int np=1; np<numEnable; np++){
+				line_read[np] = (VCLOCK*ybin) + (numhclocks[np]*HCLOCK) + (video*xsize[np]/xbin);
+			}
+		}
 
 		// edited here to allow >2 windows - SL (18/7/2012)
 		// multiply time to shift one row into serial register by number of rows for total readout time
-                double[] readout = new double[numEnable];
-		for(int np=0; np<numEnable; np++) readout[np]=0.0;
-                if(isDriftMode){
-                        readout[0] = (dysize/ybin) * line_read[0];
-                }else{
-                        for(int np=0; np<numEnable; np++){
-			    readout[np] = (ysize[np]/ybin) * line_read[np];
-                        }
-                }
+		double[] readout = null;
+		if(numEnable == 0){
+			readout = new double[1];
+		}else{        
+			readout = new double[numEnable];
+		}
+		readout[0] = 0.0;
+		for(int np=1; np<numEnable; np++) readout[np]=0.0;
+		if(isDriftMode){
+			readout[0] = (dysize/ybin) * line_read[0];
+		}else{
+			readout[0] = (ysize[0]/ybin) * line_read[0];
+			for(int np=1; np<numEnable; np++){
+				readout[np] = (ysize[np]/ybin) * line_read[np];
+			}
+		}
 
 		// now get the total time to read out one exposure.
 		// edited here to allow >2 windows - SL (18/7/2012)
@@ -1638,8 +1739,9 @@ private JMenu createFileMenu() {
 		if(isDriftMode){
 		    cycleTime += pshift*VCLOCK+yshift[0]+line_clear[0]+readout[0];
 		}else{
-		    for(int np=0; np<numEnable; np++){
-			cycleTime += yshift[np] + line_clear[np] + readout[np];
+			cycleTime += yshift[0] + line_clear[0] + readout[0];
+		    for(int np=1; np<numEnable; np++){
+				cycleTime += yshift[np] + line_clear[np] + readout[np];
 		    }
 		}
 

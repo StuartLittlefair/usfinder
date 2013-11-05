@@ -9,11 +9,11 @@ package usfinder;
 // delta_pa    is the rotator position when the ultracam chip runs north-south
 // delta_x     is the error in alignment (x-direction) between chip centre and telescope pointing (arcsecs)
 // delta_y     is the error in alignment (y-direction) between chip centre and telescope pointing (arcsecs)
-
+// eastofnorth is a boolean which indicates whether the skyPA increases east of north (true everywhere except TNO)
 public class Telescope {	
 
 	public Telescope(String	name, double[] zeroPoint, double plateScale, boolean flipped,
-                     double delta_pa, double delta_x, double delta_y) {
+                     double delta_pa, double delta_x, double delta_y, boolean eastofnorth) {
         this.name        = name;
         this.zeroPoint   = zeroPoint;
         this.plateScale  = plateScale;
@@ -21,6 +21,7 @@ public class Telescope {
         this.delta_pa    = delta_pa;
         this.delta_x     = delta_x;
         this.delta_y     = delta_y;
+        this.eastofnorth = eastofnorth;
     }
 	
     public void setPlateScale(double ps){
@@ -34,5 +35,5 @@ public class Telescope {
     public double delta_pa; 
     public double delta_x; 
     public double delta_y;
-    
+    public boolean eastofnorth;
 };
