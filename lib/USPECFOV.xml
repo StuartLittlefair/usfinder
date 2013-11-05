@@ -20,8 +20,8 @@
 		<!-- Whole CCD: the maximum coverage -->
 		<RESOURCE ID="WCCD" name="WCCD">
 			<DESCRIPTION>The whole ultracam chip</DESCRIPTION>
-			<PARAM ShortDescription="UCAM" />
-			<TABLE ID="UCAM" name="UCAM">
+			<PARAM ShortDescription="USPEC" />
+			<TABLE ID="USPEC" name="USPEC">
 				<PARAM name="Region" value="Polygon" />
 				<FIELD ID="VXO" name="VertexXOffset" datatype="float" unit="arcsec" utype="stc:AstroCoordArea/Region/reg:Polygon/Vertex/Position[1]" />
 				<FIELD ID="VYO" name="VertexYOffset" datatype="float" unit="arcsec" utype="stc:AstroCoordArea/Region/reg:Polygon/Vertex/Position[2]" />
@@ -48,7 +48,37 @@
 			</TABLE>
 			<PARAM name="color" value="red" />
 		</RESOURCE>
-
+		<!-- Imaging area: the imaging area, not including overscan -->
+		<RESOURCE ID="IMAG" name="IMAG">
+			<DESCRIPTION>The imaging area</DESCRIPTION>
+			<PARAM ShortDescription="USPEC_IMAG" />
+			<TABLE ID="USPEC_IMAG" name="USPEC_IMAG">
+				<PARAM name="Region" value="Polygon" />
+				<FIELD ID="VXO" name="VertexXOffset" datatype="float" unit="arcsec" utype="stc:AstroCoordArea/Region/reg:Polygon/Vertex/Position[1]" />
+				<FIELD ID="VYO" name="VertexYOffset" datatype="float" unit="arcsec" utype="stc:AstroCoordArea/Region/reg:Polygon/Vertex/Position[2]" />
+				<DATA>
+				<TABLEDATA>
+					<TR>
+						<TD>70.656</TD>
+						<TD>70.656</TD>
+					</TR>
+					<TR>
+						<TD>-70.656</TD>
+						<TD>70.656</TD>
+					</TR>
+					<TR>
+						<TD>-70.656</TD>
+						<TD>-70.656</TD>
+					</TR>
+					<TR>
+						<TD>70.656</TD>
+						<TD>-70.656</TD>
+					</TR>
+				</TABLEDATA>
+				</DATA>
+			</TABLE>
+			<PARAM name="color" value="red" />
+		</RESOURCE>
 		<!-- end of the main Ultracam chip -->
 </RESOURCE>
 </VOTABLE>

@@ -82,14 +82,31 @@ public class FOVmanip {
 		}
 		return stream;
 	}	
-	
+
+	public void delWindowPair() {
+		nodelist = this.document.getElementsByTagName("RESOURCE");	
+		// now - does this window already exist? If it doesn't there's nothing more to do.
+		int i=0;
+		for(i=0; i<nodelist.getLength(); i++){
+			Element elem = (Element)nodelist.item(i);
+			String check = "WindowPair";
+			if(elem.hasAttribute("ID") && elem.getAttribute("ID").equals(check)){
+		
+			// OK, it exists, let's delete it
+			daddy = elem.getParentNode();
+			daddy.removeChild(elem);			
+			break;
+			}
+		}
+    }
+  	
 	public void delSingleWindow(int nwin) {
 		nodelist = this.document.getElementsByTagName("RESOURCE");	
 		// now - does this window already exist? If it doesn't there's nothing more to do.
 		int i=0;
 		for(i=0; i<nodelist.getLength(); i++){
 			Element elem = (Element)nodelist.item(i);
-			String check = "SpecWindow"+nwin;
+			String check = "SingleWindow"+nwin;
 			if(elem.hasAttribute("ID") && elem.getAttribute("ID").equals(check)){
 		
 		
@@ -100,8 +117,8 @@ public class FOVmanip {
 			}
 		}
     }
-    
-    public void addSingleWindow(SingleWindows win, int nwin, Telescope tel){
+
+    public void addWindowPair(WindowPairs win, Telescope tel){
 	
 		nodelist = this.document.getElementsByTagName("RESOURCE");
 	
@@ -114,7 +131,7 @@ public class FOVmanip {
 		// now - does this window already exist? If it does there's nothing more to do.
 		for(int i=0; i<nodelist.getLength(); i++){
 			Element elem = (Element)nodelist.item(i);
-			String check = "SpecWindow"+nwin;
+			String check = "WindowPair";
 			if(elem.hasAttribute("ID") && elem.getAttribute("ID").equals(check)){
 			// OK, it exists, let's bail
 			//System.out.println("Window Pair " + nwin + " already exists.");
@@ -143,7 +160,130 @@ public class FOVmanip {
 		winRes1 = (Element)ccdRes.cloneNode(true);
 		
 		// change resource name
-		String id = "SpecWindow"+nwin;
+		String id = "WindowPair";
+		winRes1.setAttribute("ID", id);
+		winRes1.setAttribute("name", id);
+		//change rest of attributes
+		winRes1.normalize();
+		nodelist = winRes1.getChildNodes();
+		for(int i=0; i<nodelist.getLength(); i++){
+			if(nodelist.item(i).getNodeType() == 1){
+			Element elem = (Element)nodelist.item(i);
+			// description
+			if(elem.getTagName().equals("DESCRIPTION")) 
+				elem.setTextContent("An ULTRASPEC window");
+			// Short Description
+			if(elem.hasAttribute("ShortDescription"))
+				elem.setAttribute("ShortDescription","Left Window of Pair");
+			if(elem.getTagName().equals("TABLE") && elem.hasAttribute("ID")){
+				elem.setAttribute("ID", "LWin");
+				elem.setAttribute("name", "LWin");				
+			}
+			}
+		}
+		
+		// The right window of the pair is represented by a second <TABLE> node in the
+		// resource, so let's copy the one that's already there
+		nodelist = winRes1.getElementsByTagName("TABLE");
+		Element TableElem = (Element)nodelist.item(0);
+		Element rightWin = (Element)TableElem.cloneNode(true);
+		rightWin.setAttribute("ID",   "RWin");
+		rightWin.setAttribute("name", "RWin");
+			
+		winRes1.appendChild(rightWin);				
+		
+		// normally we set the <TD> datatags here to the 4 corners of the window
+		double x1,x2,x3,x4,y1,y2;
+		double PlateScale = tel.plateScale;
+		double xoff = tel.delta_x;
+		double yoff = tel.delta_y;
+		try {
+			x1 = xoff+dir*(528-win.getXleft(0))*PlateScale; 
+			x3 = (x1 - dir*win.getNx(0)*PlateScale);
+			y1 = yoff+(win.getYstart(0)-536)*PlateScale; 
+			y2 = y1 + win.getNy(0)*PlateScale;
+			x2 = xoff+dir*(528-win.getXright(0))*PlateScale;
+			x4 = (x2 - dir*win.getNx(0)*PlateScale);
+			nodelist = winRes1.getElementsByTagName("TD");
+			nodelist.item(0).setTextContent(""+x1);
+			nodelist.item(1).setTextContent(""+y1);
+			nodelist.item(2).setTextContent(""+x3);
+			nodelist.item(3).setTextContent(""+y1);
+			nodelist.item(4).setTextContent(""+x3);
+			nodelist.item(5).setTextContent(""+y2);
+			nodelist.item(6).setTextContent(""+x1);
+			nodelist.item(7).setTextContent(""+y2);
+			nodelist.item(8).setTextContent(""+x2);
+			nodelist.item(9).setTextContent(""+y1);
+			nodelist.item(10).setTextContent(""+x4);
+			nodelist.item(11).setTextContent(""+y1);
+			nodelist.item(12).setTextContent(""+x4);
+			nodelist.item(13).setTextContent(""+y2);
+			nodelist.item(14).setTextContent(""+x2);
+			nodelist.item(15).setTextContent(""+y2);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+						
+		//set colour to blue
+		nodelist = winRes1.getElementsByTagName("PARAM");
+		for(int i=0; i<nodelist.getLength(); i++){
+			Element elem = (Element)nodelist.item(i);
+			if(elem.hasAttribute("name") && (elem.getAttribute("name").equals("color")) )
+			elem.setAttribute("value", "blue");
+		}
+		
+		// append window to file
+		try{
+			fovRes.appendChild(winRes1);
+		} catch (DOMException e){
+			e.printStackTrace();
+		}		
+    }
+
+    public void addSingleWindow(SingleWindows win, int nwin, Telescope tel){
+	
+		nodelist = this.document.getElementsByTagName("RESOURCE");
+	
+		// if telescope is flipped such that east is left, then take account
+		double dir = 1.0;
+		if (tel.flipped) dir = -1.0;
+	
+		//System.out.println("adding window pair " + nwin);
+	
+		// now - does this window already exist? If it does there's nothing more to do.
+		for(int i=0; i<nodelist.getLength(); i++){
+			Element elem = (Element)nodelist.item(i);
+			String check = "SingleWindow"+nwin;
+			if(elem.hasAttribute("ID") && elem.getAttribute("ID").equals(check)){
+			// OK, it exists, let's bail
+			//System.out.println("Window Pair " + nwin + " already exists.");
+			return;
+			}
+		}
+	
+		// OK - it doesn't exist so let's put it in!
+		// get a template for a window descriptor by editing the main window resource
+				
+		// Get elements containing the whole FoV resource and the full CCD Resource
+		Element ccdRes = null;
+		Element fovRes  = null;
+		for(int i=0; i<nodelist.getLength(); i++){
+			Element elem = (Element)nodelist.item(i);
+			if(elem.hasAttribute("ID") && elem.getAttribute("ID").equals("WCCD")) 
+			// this is the resource element detailing the main window
+			ccdRes = (Element)elem;
+			if(elem.hasAttribute("ID") && elem.getAttribute("ID").equals("USPEC_FoV")) 
+			// this is the resource element detailing the whole FOV
+			fovRes = (Element)elem;			
+		}
+
+		// let's try copying the ccd Resource element to a window resource element.
+		Element winRes1 = null;
+		winRes1 = (Element)ccdRes.cloneNode(true);
+		
+		// change resource name
+		String id = "SingleWindow"+nwin;
 		winRes1.setAttribute("ID", id);
 		winRes1.setAttribute("name", id);
 		//change rest of attributes
@@ -182,11 +322,11 @@ public class FOVmanip {
 		double yoff = tel.delta_y;
 		try {
 			int ysize = win.getNy(nwin);
-			x1 = xoff+dir*(512-win.getXstart(nwin))*PlateScale; 
+			x1 = xoff+dir*(528-win.getXstart(nwin))*PlateScale; 
 			x2 = (x1 - dir*win.getNx(nwin)*PlateScale);
-			y1 = yoff+(win.getYstart(nwin)-512)*PlateScale; 
+			y1 = yoff+(win.getYstart(nwin)-536)*PlateScale; 
 			y2 = y1 + win.getNy(nwin)*PlateScale;
-			y3 = yoff+(win.getYstart(nwin)- 512)*PlateScale;
+			y3 = yoff+(win.getYstart(nwin)- 536)*PlateScale;
 			y4 = y3 + win.getNy(nwin)*PlateScale;
 			nodelist = winRes1.getElementsByTagName("TD");
 			nodelist.item(0).setTextContent(""+x1);
@@ -225,7 +365,58 @@ public class FOVmanip {
 			e.printStackTrace();
 		}		
     }
+    
+    public void configOverscan(Telescope tel){
+		/**
+		   try {
+		   _transformer.transform(new DOMSource(this.document), new StreamResult(System.out));
+		   } catch (TransformerException e1) {
+		   // TODO Auto-generated catch block
+		   e1.printStackTrace();
+		   }
+		**/
+		
+		double PlateScale = tel.plateScale;
+		double xoff = tel.delta_x;
+		double yoff = tel.delta_y;
+		
+		nodelist = this.document.getElementsByTagName("RESOURCE");
+		// now - does this window already exist? If it does there's nothing more to do.
+		Element elem = null;
+		for(int i=0; i<nodelist.getLength(); i++){
+			elem = (Element)nodelist.item(i);
+			String check = "IMAG";
+			if(elem.hasAttribute("ID") && elem.getAttribute("ID").equals(check)) break;
+		}	
 
+		//set colour to red
+		nodelist = elem.getElementsByTagName("PARAM");
+		for(int i=0; i<nodelist.getLength(); i++){
+			Element thiselem = (Element)nodelist.item(i);
+			if(thiselem.hasAttribute("name") && (thiselem.getAttribute("name").equals("color")) )
+			thiselem.setAttribute("value", "red");
+		}
+
+		// normally we set the <TD> datatags here to the 4 corners of the window
+		double x1,x2,y1,y2;
+		x1 = 512*PlateScale+xoff; 
+		y1 = 488*PlateScale+yoff;
+		x2 = x1-1024*PlateScale; y2 = y1-1024*PlateScale;
+		try {
+			nodelist = elem.getElementsByTagName("TD");
+			nodelist.item(0).setTextContent(""+x1);
+			nodelist.item(1).setTextContent(""+y1);
+			nodelist.item(2).setTextContent(""+x2);
+			nodelist.item(3).setTextContent(""+y1);
+			nodelist.item(4).setTextContent(""+x2);
+			nodelist.item(5).setTextContent(""+y2);
+			nodelist.item(6).setTextContent(""+x1);
+			nodelist.item(7).setTextContent(""+y2);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+    }
+    
     public void configMainWin(Telescope tel){
 		/**
 		   try {
@@ -259,9 +450,9 @@ public class FOVmanip {
 
 		// normally we set the <TD> datatags here to the 4 corners of the window
 		double x1,x2,y1,y2;
-		x1 = 512*PlateScale+xoff; 
-		y1 = 512*PlateScale+yoff;
-		x2 = x1-1024*PlateScale; y2 = y1-1024*PlateScale;
+		x1 = 528*PlateScale+xoff; 
+		y1 = 536*PlateScale+yoff;
+		x2 = x1-1056*PlateScale; y2 = y1-1072*PlateScale;
 		try {
 			nodelist = elem.getElementsByTagName("TD");
 			nodelist.item(0).setTextContent(""+x1);
@@ -277,6 +468,56 @@ public class FOVmanip {
 		}
     }	
 	
+    public void configWindowPair(WindowPairs win, Telescope tel){
+		
+		double PlateScale = tel.plateScale;
+		double dir=1.0;
+		if (tel.flipped) dir = -1.0;
+		double xoff = tel.delta_x;
+		double yoff = tel.delta_y;
+		
+		nodelist = this.document.getElementsByTagName("RESOURCE");
+		// now - does this window already exist? If it does there's nothing more to do.
+		Element elem = null;
+		for(int i=0; i<nodelist.getLength(); i++){
+			elem = (Element)nodelist.item(i);
+			String check = "WindowPair";
+			if(elem.hasAttribute("ID") && elem.getAttribute("ID").equals(check)) break;
+			
+		}	
+
+		// normally we set the <TD> datatags here to the 4 corners of the window
+		double x1,x2,x3,x4,y1,y2;
+		try {
+			x1 = xoff+dir*(512-win.getXleft(0))*PlateScale; 
+			x3 = (x1 - dir*win.getNx(0)*PlateScale);
+			y1 = yoff+(win.getYstart(0)-512)*PlateScale; 
+			y2 = y1 + win.getNy(0)*PlateScale;
+			x2 = xoff+dir*(512-win.getXright(0))*PlateScale; 
+			x4 = (x2 - dir*win.getNx(0)*PlateScale);
+			nodelist = elem.getElementsByTagName("TD");
+			nodelist.item(0).setTextContent(""+x1);
+			nodelist.item(1).setTextContent(""+y1);
+			nodelist.item(2).setTextContent(""+x3);
+			nodelist.item(3).setTextContent(""+y1);
+			nodelist.item(4).setTextContent(""+x3);
+			nodelist.item(5).setTextContent(""+y2);
+			nodelist.item(6).setTextContent(""+x1);
+			nodelist.item(7).setTextContent(""+y2);
+			nodelist.item(8).setTextContent(""+x2);
+			nodelist.item(9).setTextContent(""+y1);
+			nodelist.item(10).setTextContent(""+x4);
+			nodelist.item(11).setTextContent(""+y1);
+			nodelist.item(12).setTextContent(""+x4);
+			nodelist.item(13).setTextContent(""+y2);
+			nodelist.item(14).setTextContent(""+x2);
+			nodelist.item(15).setTextContent(""+y2);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+    }
+
     public void configSingleWindow(SingleWindows win, int nwin, Telescope tel){
 		
 		double PlateScale = tel.plateScale;
@@ -290,7 +531,7 @@ public class FOVmanip {
 		Element elem = null;
 		for(int i=0; i<nodelist.getLength(); i++){
 			elem = (Element)nodelist.item(i);
-			String check = "SpecWindow"+nwin;
+			String check = "SingleWindow"+nwin;
 			if(elem.hasAttribute("ID") && elem.getAttribute("ID").equals(check)) break;
 			
 		}	
@@ -299,11 +540,11 @@ public class FOVmanip {
 		double x1,x2,y1,y2,y3,y4;
 		try {
 			int ysize = win.getNy(nwin);
-			x1 = xoff+dir*(512-win.getXstart(nwin))*PlateScale; 
+			x1 = xoff+dir*(528-win.getXstart(nwin))*PlateScale; 
 			x2 = (x1 - dir*win.getNx(nwin)*PlateScale);
-			y1 = yoff+(win.getYstart(nwin)-512)*PlateScale; 
+			y1 = yoff+(win.getYstart(nwin)-536)*PlateScale; 
 			y2 = y1 + win.getNy(nwin)*PlateScale;
-			y3 = yoff+(win.getYstart(nwin)-512)*PlateScale; 
+			y3 = yoff+(win.getYstart(nwin)-536)*PlateScale; 
 			y4 = y3 + win.getNy(nwin)*PlateScale;
 			nodelist = elem.getElementsByTagName("TD");
 			nodelist.item(0).setTextContent(""+x1);
@@ -328,7 +569,7 @@ public class FOVmanip {
 		}
 
     }
-	
+
     public void setCentre(String RA, String DEC){
 		//String RA_old=null;
 		//String DEC_old=null;

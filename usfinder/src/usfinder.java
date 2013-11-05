@@ -39,11 +39,65 @@ public class usfinder extends JFrame implements VOApp,
     // Default Telescope data. See the class for a full description of the fields        
     private static final Telescope TELESCOPE_DATA = 
     	new Telescope("TNO",    new double[] {22.71, 25.25, 25.01, 24.69, 23.81}, 0.45, false, 270.0, 5.8025, 4.431);
-        
+    // persistent preferences used for changing telescope parameters    
     final Preferences _telPref = Preferences.userNodeForPackage(this.getClass());
-
     // The following are used to pass the telescope data around
     private Telescope _telescope = null, _old_telescope = null;
+
+ 	// Timing parameters from Vik (units of seconds, or seconds/pixel)
+    // VCLOCK changed from 9.12 to 14.4 musec 12/6/09 after changes made during NTT run (TRM)
+    // updated with new timing parameters from Vik (SL 26/10/12)
+    // further updated with new timing parameters from Vik (SL 22/02/13)
+    public static final double VCLOCK = 14.4e-6; 
+    public static final double HCLOCK_NORM = 0.48e-6;
+    public static final double HCLOCK_AV   = 0.96e-6;
+    public static final double VIDEO_NORM_SLOW = 11.20e-6;
+    public static final double VIDEO_NORM_MED  =  6.24e-6;
+    public static final double VIDEO_NORM_FAST =  3.20e-6;
+    public static final double VIDEO_AV_SLOW   = 11.20e-6;
+    public static final double VIDEO_AV_MED    =  6.24e-6;
+    public static final double VIDEO_AV_FAST   =  3.20e-6;
+    public static final int    FFX             = 1072;
+    public static final int    FFY             = 1072;
+    public static final int    IFY             = 1072;
+    public static final int    IFX             = 1072;
+    public static final int    AVALANCHE_PIXELS= 1072;
+     // Instrument Noise/Gain Characteristics: from Vik's O/L signal/noise calculator - 14/12/2011 (SL)
+    // Updated by SL (25/02/2013) to use new noise numbers from VSD
+    private static final double   AVALANCHE_GAIN_9    = 1200.0;        // dimensionless gain, hvgain=9
+    private static final double   AVALANCHE_SATURATE  = 80000;       // electrons
+    // Note - avalanche gains assume HVGain = 9. We can adapt this later when we decide how
+    // gain should be set at TNO. Might be better to make gain a function if we allow 0 < HVgain < 9 (SL)
+    private static final double   GAIN_NORM_FAST = 0.8;             // electrons per count
+    private static final double   GAIN_NORM_MED  = 0.7;             // electrons per count
+    private static final double   GAIN_NORM_SLOW = 0.8;             // electrons per count
+    private static final double   GAIN_AV_FAST   = 0.0034;           // electrons per count
+    private static final double   GAIN_AV_MED    = 0.0013;           // electrons per count
+    private static final double   GAIN_AV_SLOW   = 0.0016;           // electrons per count
+    // Note - avalanche RNO assume HVGain = 9. We can adapt this later when we decide how
+    // gain should be set at TNO. Might be better to make RNO a function if we allow 0 < HVgain < 9 (SL)
+    private static final double   RNO_NORM_FAST  =  4.8;           // electrons per pixel
+    private static final double   RNO_NORM_MED   =  2.8;           // electrons per pixel
+    private static final double   RNO_NORM_SLOW  =  2.2;           // electrons per pixel
+    private static final double   RNO_AV_FAST    = 16.5;           // electrons per pixel
+    private static final double   RNO_AV_MED     =  7.8;           // electrons per pixel
+    private static final double   RNO_AV_SLOW    =  5.6;           // electrons per pixel
+    // other noise sources
+    private static final double   DARK_E         =  0.001;         // e-/pix/sec
+    private static final double   CIC            =  0.010;         // Clock induced charge, e-/pix
+	//------------------------------------------------------------------------------------------
+    // Sky parameters
+    // Extinction, mags per unit airmass
+    private static final double[] EXTINCTION = {0.50, 0.19, 0.09, 0.05, 0.04};
+
+    // Sky brightness, mags/arcsec**2, dark, grey, bright, in ugriz
+    private static final double[][] SKY_BRIGHT = {
+	{22.4, 22.2, 21.4, 20.7, 20.3},
+	{21.4, 21.2, 20.4, 20.1, 19.9},
+	{18.4, 18.2, 17.4, 17.9, 18.3}
+    };
+    //------------------------------------------------------------------------------------------
+
  
     // Colours
     public static final Color DEFAULT_COLOUR    = new Color(220, 220, 255);
@@ -61,7 +115,6 @@ public class usfinder extends JFrame implements VOApp,
     // Width for horizontal separator
     public static final int SEPARATOR_WIDTH = 5;
    
- 
     private boolean _validStatus = true; 
     private int _filterIndex    = 1;
     private int _skyBrightIndex = 1;
@@ -81,29 +134,29 @@ public class usfinder extends JFrame implements VOApp,
     // Configurable values
     public static String  TELESCOPE             = null;
     public static String   WINDOW_NAME          = new String("window");
-    public static String[] TEMPLATE_LABEL       = {"1 or 2 windows"} ;
-    public static String[] TEMPLATE_PAIR        = {"2"};
+    public static String[] TEMPLATE_LABEL       = {"Window Mode","Drift Mode"};
+    public static String[] TEMPLATE_PAIR        = {"4","1"};
     public static String[] TEMPLATE_APP         = null;
     public static String[] TEMPLATE_ID          = null; 
 
     // Binning factors
     private int xbin    = 1;
     private int ybin    = 1;
-    public static final int[] POSSIBLE_BIN_FACTORS = {1,2,4,8};
+    public static final int[] POSSIBLE_BIN_FACTORS = {1,2,3,4,5,6,8};
     private final IntegerTextField xbinText = new IntegerTextField(xbin, 1, 8, 1, "X bin factor", true, DEFAULT_COLOUR, ERROR_COLOUR, 2);
     private final IntegerTextField ybinText = new IntegerTextField(ybin, 1, 8, 1, "Y bin factor", true, DEFAULT_COLOUR, ERROR_COLOUR, 2);
     
     private static JComboBox templateChoice;
     public int numEnable;
     
-    private String applicationTemplate    = new String("1 or 2 windows");
-    private String oldApplicationTemplate = new String("1 or 2 windows");
+    private String applicationTemplate    = new String("Window Mode");
+    private String oldApplicationTemplate = new String("Window Mode");
     
     // Readout speeds
     private static final String[] SPEED_LABELS = {
-	"Slow",
-	"Medium",
-	"Fast"
+		"Slow",
+		"Medium",
+		"Fast"
     };
     private JComboBox speedChoice = new JComboBox(SPEED_LABELS);
     private String readSpeed = "Slow";
@@ -116,7 +169,7 @@ public class usfinder extends JFrame implements VOApp,
     
     // Standard number of windows 
     private int numWin = 2;
-    private IntegerTextField numWinText = new IntegerTextField(numWin, 1, 2, 1, "Number of windows", true, DEFAULT_COLOUR, ERROR_COLOUR, 2);
+    private IntegerTextField numWinText = new IntegerTextField(numWin, 1, 4, 1, "Number of windows", true, DEFAULT_COLOUR, ERROR_COLOUR, 2);
 
     // High voltage gain
     private int hvGain = 0;
@@ -135,35 +188,36 @@ public class usfinder extends JFrame implements VOApp,
     private static final JTextField _piText         = new JTextField("", 15);
     private static final JTextField _observerText   = new JTextField("", 15);
     
-    // Timing parameters from Vik (units of seconds, or seconds/pixel)
-    public static final double VCLOCK = 9.12e-6; 
-    public static final double HCLOCK = 0.48e-6;
-    public static final double VIDEO_NORM_SLOW = 11.28e-6;
-    public static final double VIDEO_NORM_MED  =  3.28e-6;
-    public static final double VIDEO_NORM_FAST =  1.92e-6;
-    public static final double VIDEO_AV_SLOW   = 11.76e-6;
-    public static final double VIDEO_AV_MED    =  3.76e-6;
-    public static final double VIDEO_AV_FAST   =  2.40e-6;
-    public static final int    FFX             = 1072;
-    public static final int    FFY             = 1072;
-    public static final int    IFY             = 1072;
-    public static final int    IFX             = 1072;
-    public static final int    AVALANCHE_PIXELS= 1072;
-
+    // checkbox for clear
     private JCheckBox clearEnabled = new JCheckBox();
-
+	// stores old setting of clear for switching to/from drift mode
+    private boolean  _wasClearEnabled = false;
+    // checkbox for drift mode
+    private JCheckBox driftModeEnabled = new JCheckBox();
+    
     private static JButton syncWindows      = new JButton("Sync windows");
-
+	
+	// Labels for Single Windows
     private static JLabel windowsLabel = new JLabel("Windows");
     private static JLabel ystartLabel  = new JLabel("ystart");
     private static JLabel xstartLabel  = new JLabel("xstart");
     private static JLabel nxLabel      = new JLabel("nx");
     private static JLabel nyLabel      = new JLabel("ny");
-
+    // Labels for WindowPairs(drift mode)
+    private static JLabel ystartLabel2  = new JLabel("ystart");
+    private static JLabel xleftLabel  = new JLabel("xleft");
+    private static JLabel xrightLabel  = new JLabel("xright");
+    private static JLabel nxLabel2      = new JLabel("nx");
+    private static JLabel nyLabel2      = new JLabel("ny");
+    
     private static JLabel hvGainLabel  = new JLabel("Avalanche gain");
 
+    // ULTRASPEC works with single windows
     private static SingleWindows _singleWindows;
-    
+    // or WindowPairs in the new drift mode app
+    private static WindowPairs _windowPairs;
+    public static final int[] specialNy = {15,17,22,23,24,28,45,61,69,94,115,148,207,344,345};
+
     // Use this a fair bit, so just make one
     private static final GridBagLayout gbLayout = new GridBagLayout();
     
@@ -230,15 +284,28 @@ public class usfinder extends JFrame implements VOApp,
     private static usfinder mw = null;
 
     public void FOVSync () {
-	// update FOV in Aladin
+		// update FOV in Aladin
+		
+		// drift mode y/n?
+		boolean isDriftMode = driftModeEnabled.isSelected();
+
+		// make sure main CCD is correct		
     	FOV.configMainWin(_telescope);
-	for(int i=0; i<numEnable; i++){
-            FOV.addSingleWindow(_singleWindows, i, _telescope);
-            FOV.configSingleWindow(_singleWindows, i, _telescope);
-        }
-        for(int i=numEnable; i<2; i++)
-            FOV.delSingleWindow(i);				
-	String raText=null, decText=null;
+    	FOV.configOverscan(_telescope);
+    	if(isDriftMode){
+    		for(int i=0; i<4; i++) FOV.delSingleWindow(i);
+    		FOV.addWindowPair(_windowPairs, _telescope);
+    		FOV.configWindowPair(_windowPairs, _telescope);
+    	}else{
+    		FOV.delWindowPair();
+			for(int i=0; i<numEnable; i++){
+				FOV.addSingleWindow(_singleWindows, i, _telescope);
+				FOV.configSingleWindow(_singleWindows, i, _telescope);
+			}
+			for(int i=numEnable; i<4; i++)
+				FOV.delSingleWindow(i);				
+		}
+		String raText=null, decText=null;
     	try {
             raText = raHourVal.getText() + ":" + raMinVal.getText() + ":" + String.valueOf(raSecVal.getValue());
             decText = decDegVal.getText() + ":" + decMinVal.getText() + ":" + decSecVal.getText();
@@ -314,7 +381,7 @@ public class usfinder extends JFrame implements VOApp,
 	
 	    // This is a JFrame of sorts. Let's add titles etc
 	    this.setTitle("UltraSpec finding chart and acquisition tool");
-	    this.setSize(800,400);
+	    this.setSize(900,500);
 	    	    
 	    final Container container = this.getContentPane();
 	    container.setBackground(DEFAULT_COLOUR);
@@ -357,7 +424,7 @@ public class usfinder extends JFrame implements VOApp,
 	    final ActionListener taskPerformer = new ActionListener() {
 		    public void actionPerformed(ActionEvent event) {
 		    	speed();
-			_singleWindows.setNwin(numEnable);
+				_singleWindows.setNwin(numEnable);
 		    	if(_areSynchronised()){
 		    		syncWindows.setEnabled(false);
 		    		syncWindows.setBackground(DEFAULT_COLOUR);
@@ -385,10 +452,10 @@ public class usfinder extends JFrame implements VOApp,
 				// but is not currently useable
 		    		addTarg.setEnabled(false); // disable target buttons
 		    		addComp.setEnabled(false);
-				if(!aladinGo.isEnabled()) aladinGo.setEnabled(true); // allow re-enabling 
+					if(!aladinGo.isEnabled()) aladinGo.setEnabled(true); // allow re-enabling 
 			    }else{
-				addTarg.setEnabled(true);
-				addComp.setEnabled(true);
+					addTarg.setEnabled(true);
+					addComp.setEnabled(true);
 			    }
 		    	}
 		    }
@@ -409,12 +476,11 @@ public class usfinder extends JFrame implements VOApp,
     public static void main(final String[] args) {
     	mw = new usfinder();		
     }      
-    
     	
     public void startAladin() {
 
     	// Instantiate Aladin
-	System.out.println("Starting Aladin with target" + aladinTarget);
+		System.out.println("Starting Aladin with target" + aladinTarget);
     	aladin = cds.aladin.Aladin.launch();    	
     	aladin.execCommand("sync");
     	String aladinSurvey=null;
@@ -445,7 +511,7 @@ public class usfinder extends JFrame implements VOApp,
     		aladin = null;
     		return;
     	}
-    	
+    	/**
     	// load appropriate size field of view for this telescope
     	if(_telescope.name.equalsIgnoreCase("wht")){
     		aladin.execCommand("zoom 1x");
@@ -455,7 +521,8 @@ public class usfinder extends JFrame implements VOApp,
 			aladin.execCommand("zoom 2x");
     	} else if (_telescope.name.equalsIgnoreCase("NTT")){
 			aladin.execCommand("zoom 2x");
-	}
+		}
+		**/
     	if(_telescope.flipped) aladin.execCommand("flipflop H");
     		
     	/** We get the RA and DEC of our pointing from the Aladin status command. This is necessary to
@@ -541,110 +608,110 @@ public class usfinder extends JFrame implements VOApp,
     	return true;
     }
 
-public void publishChart(){
+	public void publishChart(){
 	
-	String tempdir = System.getProperty("java.io.tmpdir");
-	if ( !(tempdir.endsWith("/") || tempdir.endsWith("\\")) )
-	    tempdir = tempdir + System.getProperty("file.separator");
+		String tempdir = System.getProperty("java.io.tmpdir");
+		if ( !(tempdir.endsWith("/") || tempdir.endsWith("\\")) )
+			tempdir = tempdir + System.getProperty("file.separator");
 	
-	if(aladin != null) aladin.execCommand("hide SexCat");
-	if(aladin != null) aladin.execCommand("save "+tempdir+"tmp.bmp");
-	if(aladin != null) aladin.execCommand("show SexCat");
+		if(aladin != null) aladin.execCommand("hide SexCat");
+		if(aladin != null) aladin.execCommand("save "+tempdir+"tmp.bmp");
+		if(aladin != null) aladin.execCommand("show SexCat");
 	
-	File file = new File(tempdir+"tmp.bmp");
-	// load image
-	BufferedImage img = null;
-	try {
-	    img = ImageIO.read(file);
-	    
-	    // Create a graphics context on the buffered image
-	    Graphics2D g2d = img.createGraphics();
-	    int width = img.getWidth(this);
-	    
-	    // Draw on the image
-	    // Set up Font
-	    int ypos = 20;
-	    g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING,
-				 RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
-	    g2d.setPaint(Color.black);
-	    Font font = new Font("Arial", Font.PLAIN, 16);
-		g2d.setFont(font);
-		FontMetrics fontMetrics = g2d.getFontMetrics();
-	    int h = fontMetrics.getHeight();
-	
-		//Create an alpha composite of 50%  
-		AlphaComposite alpha = AlphaComposite.getInstance(AlphaComposite.SRC_ATOP);  
-		g2d.setComposite(alpha);
-	    
-	    // Draw Object name, telescope pointing and window parameters
-	    if(objText.getText().length() > 0) {
-		String string = objText.getText();
-		int w = fontMetrics.stringWidth(string);
-		g2d.drawString(string,width-w-10,ypos);
-	    }else{
-		// print coordinates
-		String string = coordText.getText();
-		int w = fontMetrics.stringWidth(string);
-		g2d.drawString(string,width-w-10,ypos);
-	    }
-	    // pointing parameters
-	    String raText=null, decText=null, paText = null;
-	    try {
-		raText = raHourVal.getText() + ":" 
-		    + raMinVal.getText() + ":" + String.valueOf(raSecVal.getValue());
-		decText = decDegVal.getText() 
-		    + ":" + decMinVal.getText() + ":" + decSecVal.getText();	    
-		paText = String.valueOf(paDegVal.getValue());
-	    } catch (Exception e) {
-		// TODO Auto-generated catch block
-		e.printStackTrace();
-	    }		
-	    if(raText.length() > 0){
-		String string = "Tel RA: " + raText;
-		int w = fontMetrics.stringWidth(string);
-		g2d.drawString(string,width-w-10,ypos+=h);
+		File file = new File(tempdir+"tmp.bmp");
+		// load image
+		BufferedImage img = null;
+		try {
+			img = ImageIO.read(file);
 		
-		string = "Tel Dec: " + decText;
-		w = fontMetrics.stringWidth(string);
-		g2d.drawString(string,width-w-10,ypos+=h);
+			// Create a graphics context on the buffered image
+			Graphics2D g2d = img.createGraphics();
+			int width = img.getWidth(this);
 		
-		string = "Tel PA: " + paText;
-		w = fontMetrics.stringWidth(string);
-		g2d.drawString(string,width-w-10,ypos+=h);
-	    }
-	    ypos+=h/2;
-	    if(numEnable >0){
-		String string = "ystart  xstart   nx  ny";
-		int w = fontMetrics.stringWidth(string);
-		g2d.drawString(string,width-w-10,ypos+=h);
-	    }
-	    for(int i=0; i<numEnable; i++){
-		try{
-		    String string = ""+_singleWindows.getYstart(i)+ "   " +
-			_singleWindows.getXstart(i)    + "  " + 
-			_singleWindows.getNx(i)        + "  " +
-			_singleWindows.getNy(i);
-		    int w = fontMetrics.stringWidth(string);
-		    g2d.drawString(string,width-w-10,ypos+=h);
-		} catch (Exception e) {
-		    e.printStackTrace();
+			// Draw on the image
+			// Set up Font
+			int ypos = 20;
+			g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING,
+					 RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+			g2d.setPaint(Color.black);
+			Font font = new Font("Arial", Font.PLAIN, 16);
+			g2d.setFont(font);
+			FontMetrics fontMetrics = g2d.getFontMetrics();
+			int h = fontMetrics.getHeight();
+	
+			//Create an alpha composite of 50%  
+			AlphaComposite alpha = AlphaComposite.getInstance(AlphaComposite.SRC_ATOP);  
+			g2d.setComposite(alpha);
+		
+			// Draw Object name, telescope pointing and window parameters
+			if(objText.getText().length() > 0) {
+			String string = objText.getText();
+			int w = fontMetrics.stringWidth(string);
+			g2d.drawString(string,width-w-10,ypos);
+			}else{
+			// print coordinates
+			String string = coordText.getText();
+			int w = fontMetrics.stringWidth(string);
+			g2d.drawString(string,width-w-10,ypos);
+			}
+			// pointing parameters
+			String raText=null, decText=null, paText = null;
+			try {
+			raText = raHourVal.getText() + ":" 
+				+ raMinVal.getText() + ":" + String.valueOf(raSecVal.getValue());
+			decText = decDegVal.getText() 
+				+ ":" + decMinVal.getText() + ":" + decSecVal.getText();	    
+			paText = String.valueOf(paDegVal.getValue());
+			} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			}		
+			if(raText.length() > 0){
+			String string = "Tel RA: " + raText;
+			int w = fontMetrics.stringWidth(string);
+			g2d.drawString(string,width-w-10,ypos+=h);
+		
+			string = "Tel Dec: " + decText;
+			w = fontMetrics.stringWidth(string);
+			g2d.drawString(string,width-w-10,ypos+=h);
+		
+			string = "Tel PA: " + paText;
+			w = fontMetrics.stringWidth(string);
+			g2d.drawString(string,width-w-10,ypos+=h);
+			}
+			ypos+=h/2;
+			if(numEnable >0){
+			String string = "ystart  xstart   nx  ny";
+			int w = fontMetrics.stringWidth(string);
+			g2d.drawString(string,width-w-10,ypos+=h);
+			}
+			for(int i=0; i<numEnable; i++){
+			try{
+				String string = ""+_singleWindows.getYstart(i)+ "   " +
+				_singleWindows.getXstart(i)    + "  " + 
+				_singleWindows.getNx(i)        + "  " +
+				_singleWindows.getNy(i);
+				int w = fontMetrics.stringWidth(string);
+				g2d.drawString(string,width-w-10,ypos+=h);
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+			}
+			g2d.dispose();
+		
+			// allow use to output image
+			final JFileChooser fc = new JFileChooser();
+			FileFilterBMP ff = new FileFilterBMP();
+			fc.setFileFilter(ff);
+			int returnVal = fc.showSaveDialog(this);
+			if (returnVal == JFileChooser.APPROVE_OPTION) {
+			File ofile = fc.getSelectedFile();
+			ImageIO.write(img,"bmp",ofile);
+			}
+		} catch (IOException e) {
 		}
-	    }
-	    g2d.dispose();
-	    
-	    // allow use to output image
-	    final JFileChooser fc = new JFileChooser();
-	    FileFilterBMP ff = new FileFilterBMP();
-	    fc.setFileFilter(ff);
-	    int returnVal = fc.showSaveDialog(this);
-	    if (returnVal == JFileChooser.APPROVE_OPTION) {
-		File ofile = fc.getSelectedFile();
-		ImageIO.write(img,"bmp",ofile);
-	    }
-	} catch (IOException e) {
-	}
-	// clean up temp file
-	file.delete();
+		// clean up temp file
+		file.delete();
     }
 
     // You own implementation of VOApp methods for Aladin callbacks
@@ -666,35 +733,35 @@ public void publishChart(){
     }
     public String execCommand(final String cmd) {
     	
-	//displayArea.append(cmd + "\n");
+		//displayArea.append(cmd + "\n");
 
     	// TO-DO: take cmd and parse it to get ra and dec numbers and roll value.
     	Pattern pattern= Pattern.compile("Target=(\\d*:\\d*:\\d*\\.\\d*) ([\\+-]\\d*:\\d*:\\d*\\.\\d*)");
     	Matcher matcher = pattern.matcher(cmd);
     	if(matcher.find()){
     			// get ra and dec
-    	String DEC = matcher.group(2);
-    	String RA = matcher.group(1);
+			String DEC = matcher.group(2);
+			String RA = matcher.group(1);
 
-    	String[] raSplit = RA.split(":");
-    	raHourVal.setValue(Integer.parseInt(raSplit[0]));
-    	raMinVal.setValue(Integer.parseInt(raSplit[1]));
-    	raSecVal.setValue(Double.parseDouble(raSplit[2]));
-    	String[] decSplit = DEC.split(":");
-	//displayArea.append(decSplit[0] + "\n");
-    	if(decSplit[0].startsWith("+")){
-	    decDegVal.setValue(Integer.parseInt(decSplit[0].substring(1,3)));
-    	} else {
-	    //displayArea.append("negative dec " + decSplit[0] + "\n\n");
-	    decDegVal.setText(decSplit[0]);
-    	}
-    	decMinVal.setValue(Integer.parseInt(decSplit[1]));
-    	decSecVal.setValue(Double.parseDouble(decSplit[2]));
+			String[] raSplit = RA.split(":");
+			raHourVal.setValue(Integer.parseInt(raSplit[0]));
+			raMinVal.setValue(Integer.parseInt(raSplit[1]));
+			raSecVal.setValue(Double.parseDouble(raSplit[2]));
+			String[] decSplit = DEC.split(":");
+			//displayArea.append(decSplit[0] + "\n");
+			if(decSplit[0].startsWith("+")){
+				decDegVal.setValue(Integer.parseInt(decSplit[0].substring(1,3)));
+			} else {
+				//displayArea.append("negative dec " + decSplit[0] + "\n\n");
+				decDegVal.setText(decSplit[0]);
+			}
+			decMinVal.setValue(Integer.parseInt(decSplit[1]));
+			decSecVal.setValue(Double.parseDouble(decSplit[2]));
     	}
     	pattern=Pattern.compile("Roll=.*");
     	matcher = pattern.matcher(cmd);
     	if(matcher.find()){
-    			// get roll
+			// get roll
     		final String toSearch = matcher.group();
     		pattern=Pattern.compile("\\d+");
     		matcher=pattern.matcher(toSearch);
@@ -703,44 +770,45 @@ public void publishChart(){
                 PAval -= _telescope.delta_pa;
                 if(PAval > 360.0) PAval-=360.0;
                 if(PAval < 0.0) PAval += 360.0;
-                paDegVal.setValue(PAval);
-                
+                paDegVal.setValue(PAval);                
             }
     	}
     	return null; 
-    	}
+    }
     public void addObserver(final VOObserver app,final int eventMasq) {}
      
     // Method for adding components to GridBagLayout for the window panel
     private static void addComponent (final Container cont, final Component comp, final int gridx, final int gridy, 
 				      final int gridwidth, final int gridheight, final int fill, final int anchor){
 	
-	final GridBagConstraints gbc = new GridBagConstraints ();
-	gbc.gridx      = gridx;
-	gbc.gridy      = gridy;
-	gbc.gridwidth  = gridwidth;
-	gbc.gridheight = gridheight;
-	gbc.fill       = fill;
-	gbc.anchor     = anchor;
-	gbLayout.setConstraints(comp, gbc);
-	cont.add (comp);
+		final GridBagConstraints gbc = new GridBagConstraints ();
+		gbc.gridx      = gridx;
+		gbc.gridy      = gridy;
+		gbc.gridwidth  = gridwidth;
+		gbc.gridheight = gridheight;
+		gbc.fill       = fill;
+		gbc.anchor     = anchor;
+		gbLayout.setConstraints(comp, gbc);
+		cont.add (comp);
     }
     
+
     /** Creates the panel which defines the object and telescope pointing parameters */
     public Component createObjPanel(){
+
     	int ypos=0; int xpos=0;
     	final JPanel _objPanel = new JPanel(gbLayout);
     	_objPanel.setBorder(new EmptyBorder(15,15,15,15));
 	
-	// Add some space before we get onto the pointing definitions
-	addComponent( _objPanel, Box.createVerticalStrut(10), 0, ypos++,  1, 1, GridBagConstraints.NONE, GridBagConstraints.WEST);
+		// Add some space before we get onto the pointing definitions
+		addComponent( _objPanel, Box.createVerticalStrut(10), 0, ypos++,  1, 1, GridBagConstraints.NONE, GridBagConstraints.WEST);
 
-	// entry box for object name
+		// entry box for object name
     	final JLabel objLabel = new JLabel("Object Name  ");
     	addComponent(_objPanel,objLabel,0,ypos,1,1,
 		     GridBagConstraints.NONE, GridBagConstraints.WEST);
     	
-	// define processes to run when object text is changed
+		// define processes to run when object text is changed
     	objText.addActionListener(
 				  new ActionListener(){
 				      public void actionPerformed(final ActionEvent e){
@@ -752,6 +820,7 @@ public void publishChart(){
 				      }
 				  }
 				  );
+
     	addComponent(_objPanel,objText,1,ypos++,9,1,
 		     GridBagConstraints.NONE, GridBagConstraints.WEST);
     	
@@ -967,6 +1036,24 @@ public void publishChart(){
 	clearEnabled.setBackground(DEFAULT_COLOUR);
 	addComponent( _windowPanel, clearEnabled, 1, ypos++,  5, 1, GridBagConstraints.NONE, GridBagConstraints.WEST);
 
+	// Drift mode on/off
+	JLabel driftModeEnabledLabel = new JLabel("Drift Mode");
+	driftModeEnabledLabel.setToolTipText("enable Drift Mode");
+	addComponent( _windowPanel,  driftModeEnabledLabel, 0, ypos,  1, 1, GridBagConstraints.NONE, GridBagConstraints.WEST);
+	driftModeEnabled.setSelected(false);
+	driftModeEnabled.setBackground(DEFAULT_COLOUR);
+	addComponent( _windowPanel, driftModeEnabled, 1, ypos++,  5, 1, GridBagConstraints.NONE, GridBagConstraints.WEST);
+	driftModeEnabled.addActionListener(new ActionListener() {
+		public void actionPerformed(ActionEvent e) {
+		    boolean driftMode = driftModeEnabled.isSelected();
+		    if(driftMode){
+				_enableDriftMode();
+		    }else{
+				_disableDriftMode();
+		    }
+		}
+	});
+	
 	// A little space
 	addComponent( _windowPanel, Box.createVerticalStrut(5), 0, ypos++,  1, 1, GridBagConstraints.NONE, GridBagConstraints.WEST);
 	
@@ -1006,9 +1093,15 @@ public void publishChart(){
 	addComponent( _windowPanel, new JLabel("Number of windows"), 0, ypos,  1, 1, GridBagConstraints.NONE, GridBagConstraints.WEST);
 	numWinText.addActionListener(
 				      new ActionListener(){
-					  public void actionPerformed(final ActionEvent e){
-					      FOVSync();
-					  }
+						  public void actionPerformed(final ActionEvent e){
+								try{
+									numWin    = numWinText.getValue();
+									setNumEnable();
+								}catch(Exception ex){
+									System.out.println("problem");
+								}
+								FOVSync();
+						  }
 				      }
 				      );
 	addComponent( _windowPanel, numWinText, 1, ypos++,  5, 1, GridBagConstraints.NONE, GridBagConstraints.WEST);
@@ -1029,18 +1122,47 @@ public void publishChart(){
 	addComponent( _windowPanel, nxLabel,      xpos++, ypos,  1, 1, GridBagConstraints.NONE, GridBagConstraints.CENTER);
 	addComponent( _windowPanel, nyLabel,      xpos++, ypos,  1, 1, GridBagConstraints.NONE, GridBagConstraints.CENTER);
 	ypos++;
-	
+
+	// add drift mode labels and make them invisible
+	xpos = 1;
+	addComponent( _windowPanel, ystartLabel2, xpos++, ypos,  1, 1, GridBagConstraints.NONE, GridBagConstraints.CENTER);
+	addComponent( _windowPanel, xleftLabel,   xpos++, ypos,  1, 1, GridBagConstraints.NONE, GridBagConstraints.CENTER);
+	addComponent( _windowPanel, xrightLabel,  xpos++, ypos,  1, 1, GridBagConstraints.NONE, GridBagConstraints.CENTER);
+	addComponent( _windowPanel, nxLabel2,     xpos++, ypos,  1, 1, GridBagConstraints.NONE, GridBagConstraints.CENTER);
+	addComponent( _windowPanel, nyLabel2,     xpos++, ypos,  1, 1, GridBagConstraints.NONE, GridBagConstraints.CENTER);
+	ystartLabel2.setVisible(false);
+	xleftLabel.setVisible(false);
+	xrightLabel.setVisible(false);
+	nxLabel2.setVisible(false);
+	nyLabel2.setVisible(false);
+	ypos++;
+
 	// Then the row labels and fields for integer input
 	_singleWindows = new SingleWindows(gbLayout, _windowPanel, ypos, xbin, ybin, DEFAULT_COLOUR, ERROR_COLOUR);
 	_singleWindows.setNwin(numEnable);
+	// SL - edited here to allow greater than 2 windows
+	ypos += numEnable;
+
+	// or windowPairs for drift mode
+	_windowPairs = new WindowPairs(gbLayout, _windowPanel, ypos, xbin, ybin, DEFAULT_COLOUR, ERROR_COLOUR, specialNy);
+	_windowPairs.setNpair(1);
+	_windowPairs.setVisible(false);
+
 	_singleWindows.addActionListener(
 					 new ActionListener(){
 					     public void actionPerformed(final ActionEvent e){
 						 FOVSync();
 					     }
 					 }
-					 );
-	ypos += 2;
+	);
+	_windowPairs.addActionListener(
+					 new ActionListener(){
+					     public void actionPerformed(final ActionEvent e){
+						 FOVSync();
+					     }
+					 }
+	);
+
 
 	// Add some space between window definitions and the user-defined stuff
 	addComponent( _windowPanel, Box.createVerticalStrut(20), 0, ypos++,  1, 1, GridBagConstraints.NONE, GridBagConstraints.WEST);
@@ -1241,6 +1363,62 @@ private JMenu createFileMenu() {
 }
 
 
+    //------------------------------------------------------------------------------------------------------------------------------------------
+    //
+    // Disable drift mode. Switch GUI back to setup for normal mode
+
+    private void _disableDriftMode() {	
+
+	applicationTemplate = "Window Mode";
+	_singleWindows.setVisible(true);
+	_windowPairs.setVisible(false);
+	xstartLabel.setVisible(true);
+	ystartLabel.setVisible(true);
+	nxLabel.setVisible(true);
+	nyLabel.setVisible(true);
+	xleftLabel.setVisible(false);
+	xrightLabel.setVisible(false);
+	ystartLabel2.setVisible(false);
+	nxLabel2.setVisible(false);
+	nyLabel2.setVisible(false);
+	numWinText.setEnabled(true);
+	// restore previous clear settings
+	clearEnabled.setEnabled(true);
+	clearEnabled.setSelected(_wasClearEnabled);
+	FOVSync();
+    }
+
+    //------------------------------------------------------------------------------------------------------------------------------------------
+    //
+    // Enable drift mode. Switch GUI to setup for drift mode
+
+    private void _enableDriftMode() {
+	applicationTemplate = "Drift Mode";
+
+	// remember whether clear was enabled before we switched
+	_wasClearEnabled = clearEnabled.isSelected();
+	// disable clear mode
+	clearEnabled.setSelected(false);
+	// and prevent user from fiddling!
+	clearEnabled.setEnabled(false);
+	// disable numWindows
+	numWinText.setEnabled(false);
+
+	_singleWindows.setVisible(false);
+	_windowPairs.setVisible(true);
+	xstartLabel.setVisible(false);
+	ystartLabel.setVisible(false);
+	nxLabel.setVisible(false);
+	nyLabel.setVisible(false);
+	xleftLabel.setVisible(true);
+	xrightLabel.setVisible(true);
+	ystartLabel2.setVisible(true);
+	nxLabel2.setVisible(true);
+	nyLabel2.setVisible(true);
+	FOVSync();
+    }
+
+
     /** This routine implements's Vik's speed computations and reports
      *	the frame rate in Hertz, the cycle time (e.g. sampling time),
      * exposure time (time on source per cycle), the dead time and readout
@@ -1257,7 +1435,7 @@ private JMenu createFileMenu() {
 
 		// avalanche mode y/n?
 		ccdOutput = (String) ccdOutputChoice.getSelectedItem();
-		boolean lnormal = false;
+		boolean lnormal = false;		
 		if(ccdOutput.equals("Avalanche")){
 		    lnormal=false;
 		}else if(ccdOutput.equals("Normal")){
@@ -1265,6 +1443,10 @@ private JMenu createFileMenu() {
 		}else{
 		    throw new Error("ccd mode = \"" + ccdOutput + "\" is unrecognised. Programming error");
 		} 
+		double HCLOCK = lnormal ? HCLOCK_NORM : HCLOCK_AV;
+
+		// drift mode y/n?
+		boolean isDriftMode = driftModeEnabled.isSelected();
 
 		// Set the readout speed
 		readSpeed = (String) speedChoice.getSelectedItem();
@@ -1294,89 +1476,182 @@ private JMenu createFileMenu() {
 
 		// clear chip on/off?
 		boolean lclear = false;
-		if(clearEnabled.isSelected()){
-		    lclear=true;
-		}else {
-		    lclear=false;
+		if(! isDriftMode){	  
+		    if(clearEnabled.isSelected()) lclear=true;
 		} 
 
-		// get exposure delay and binning factors
+		// get exposure delay (in units of 0.1 ms) and binning factors
 		expose = _getExpose();
-		xbin         = xbinText.getValue();	
-		ybin         = ybinText.getValue();	
+		xbin   = xbinText.getValue();	
+		ybin   = ybinText.getValue();	
 
 		// window parameters
-		boolean lwin2 = true;
-		if(numEnable < 2) lwin2 = false;
-		double x1start, x1size, y1start, y1size;
-		double x2start=1, x2size=1, y2start=1, y2size=1;
-		
-		x1start = _singleWindows.getXstart(0);
-		y1start = _singleWindows.getYstart(0);
-		x1size  = _singleWindows.getNx(0);
-		y1size  = _singleWindows.getNy(0);
-		if(lwin2){
-		    x2start = _singleWindows.getXstart(1);
-		    y2start = _singleWindows.getYstart(1);
-		    x2size  = _singleWindows.getNx(1);
-		    y2size  = _singleWindows.getNy(1);
+		// SL - edited here to allow greater than 2 windows (18/7/2012)
+		double[] xstart = new double[4];
+		double[] ystart = new double[4];
+		double[] xsize  = new double[4];
+		double[] ysize  = new double[4];
+		for(int np=0; np<numEnable; np++){
+		    xstart[np] = _singleWindows.getXstart(np);
+		    ystart[np] = _singleWindows.getYstart(np);
+		    xsize[np]  = _singleWindows.getNx(np);
+		    ysize[np]  = _singleWindows.getNy(np);
 		}
-		
+		// alternatives for drift mode
+                double dxleft, dxright, dystart, dxsize, dysize;
+                dxleft  = _windowPairs.getXleft(0);
+                dxright = _windowPairs.getXright(0);
+                dystart = _windowPairs.getYstart(0);
+                dxsize = _windowPairs.getNx(0);
+                dysize = _windowPairs.getNy(0);
+
+		if(lnormal){
+		    // normal mode convert xstart by ignoring 16 overscan pixels
+		    for(int np=0; np<numEnable; np++){
+                        xstart[np] += 16;
+                    }
+		    dxleft += 16;
+		    dxright += 16;
+		}else{
+		    // in avalanche mode, need to swap windows around
+		    for(int np=0; np<numEnable; np++){
+			xstart[np] = FFX - (xstart[np]-1) - (xsize[np]-1);
+		    }
+		    dxright = FFX - (dxright-1) - (dxsize-1);
+		    dxleft = FFX - (dxleft-1) - (dxsize-1);
+		    // in drift mode, also need to swap the windows around
+		    double tmp = dxright;
+		    dxright=dxleft;
+		    dxleft=tmp;
+		}
+		    
+
 		// convert timing parameters to seconds
-		double expose_delay = expose*1.0e-3;
-
-
-		// derek hardwires a delay of 1 ms to prevent system crashes
-		expose_delay += 0.001;
+		double expose_delay = expose*1.0e-4;
 
 		// clear chip by VCLOCK-ing the image and storage areas
 		double clear_time;
 		if(lclear){
-		    clear_time = 2.0*FFY*VCLOCK;
+		    // changed to accomodate changes to clearing made by DA to fix dark current
+		    // when clearing charge along normal output
+		    // SL - 2013/03/11
+		    //clear_time = 2.0*(FFY*VCLOCK+39.e-6);
+		    clear_time = 2.0*(FFY*VCLOCK+39.e-6) + FFX*HCLOCK_NORM + 2162.0*HCLOCK_AV;
 		}else{
 		    clear_time = 0.0;
 		}
 
 
-		/** move entire image into storage area
+		// for drift mode, we need the number of windows in the pipeline and the pipeshift
+		int pnwin = (int)(((1037. / dysize) + 1.)/2.);
+		double pshift = 1037.- (2.*pnwin-1.)*dysize;
+		   
+
+		/** If not drift mode, move entire image into storage area
 		    the -35 component is because Derek only shifts 1037 pixels
 		    (composed of 1024 active rows, 5 dark reference rows, 2 transition rows
-		    and 6 extra overscan rows for good measure) **/
-		double frame_transfer = (FFY-35)*VCLOCK;
+		    and 6 extra overscan rows for good measure) 
 
+		    If drift mode, just move the window into the storage area
+		**/
+		double frame_transfer = (FFY-35)*VCLOCK + 49.0e-6;
+		if(isDriftMode)
+		    frame_transfer = (dysize+dystart-1.)*VCLOCK + 49.0e-6;
 
 		// calculate the yshift, which places windows adjacent to the serial register
-		double yshift_1 = (y1start-1.0)*VCLOCK;
-		double yshift_2 = 0.0;
-		if(lwin2)
-		    yshift_2 = (y2start-y1start-y1size) *VCLOCK;
+		// edited here to allow >2 windows - SL (18/7/2012)
+                double[] yshift = new double[numEnable];
+		for (int np=0; np<numEnable; np++) yshift[np]=0.0;
+                if(isDriftMode){
+                        yshift[0]=(dystart-1.0)*VCLOCK;
+                }else{
+                        yshift[0]=(ystart[0]-1.0)*VCLOCK;
+                        for (int np=1; np<numEnable; np++){
+                                yshift[np] = (ystart[np]-ystart[np-1]-ysize[np-1])*VCLOCK;
+                        }
+                }
 		
 		
-		// After placing the window adjacent to the serial register, Derek clears
-		// the serial register to remove the charge dumped into it. Note that he
-		// does FFX HCLOCKS in both normal and avalance readout mode.
-		double line_clear1 = (y1size != IFY) ? FFX*HCLOCK : 0.0;
-		double line_clear2 = lwin2 ? FFX*HCLOCK : 0.0;
+		/* After placing the window adjacent to the serial register, the register must be cleared
+		   by clocking out the entire register, taking FFX hclocks (we no longer open the dump gates,
+		   which took only 8 hclock cycles to complete, but gave ramps and bright rows
+		   in the bias). We think dave does 2*FFX hclocks in avalanche mode, but need
+		   to check this with him.
+		*/
+		double[] line_clear = new double[numEnable];
+		for(int np=0; np<numEnable; np++) line_clear[np]=0.0;
+		double hclockFactor = 1.0;
+		if(! lnormal){
+		    hclockFactor = 2.0;
+		}
+                if(isDriftMode){
+		    if(yshift[0] != 0) line_clear[0] = hclockFactor*FFX*HCLOCK;
+                }else{
+		    for(int np=0; np<numEnable; np++){
+			if(yshift[np] != 0) line_clear[np] = hclockFactor*FFX*HCLOCK;
+		    }
+                }
 
 		// calculate how long it takes to shift one row into the serial register
-		// shift along serial register and then read out the data.
-		int numhclocks = lnormal ? FFX : FFX + AVALANCHE_PIXELS;
-		double line_read1 = (VCLOCK*ybin) + (numhclocks*HCLOCK) + (video*x1size/xbin);
-		double line_read2 = lwin2 ? (VCLOCK*ybin) + (numhclocks*HCLOCK) + (video*x2size/xbin) : 0.0;
-		
-		// now multiply this by the number of rows to obtain total readout time
-		double readout_1 = (y1size/ybin)*line_read1;
-		double readout_2 = (y2size/ybin)*line_read2;
+		// shift along serial register and then read out the data. The charge in a row
+		// after a window used to be dumped, taking 8 HCLOCK cycles. This created ramps 
+		// and bright rows/columns in the images, so was removed.
+		int[] numhclocks = new int[numEnable];
+		for(int np=0; np<numEnable; np++) numhclocks[np] = 0;		  
+		if(isDriftMode){
+		    numhclocks[0] = FFX;
+		    if (!lnormal) numhclocks[0] += AVALANCHE_PIXELS;
+		}else{
+		    for(int np=0; np<numEnable; np++){
+			numhclocks[np] = FFX;
+			if(! lnormal) numhclocks[np] += AVALANCHE_PIXELS;
+		    }
+		}
+
+		// edited here to allow >2 windows - SL (18/7/2012)
+                double[] line_read  = new double[numEnable];
+		for(int np=0; np<numEnable; np++) line_read[np]=0.0;
+                if(isDriftMode){
+                        line_read[0] = VCLOCK*ybin + numhclocks[0]*HCLOCK + video*2.0*dxsize/xbin;
+                }else{
+                        for(int np=0; np<numEnable; np++){
+                                line_read[np] = (VCLOCK*ybin) + (numhclocks[np]*HCLOCK) + (video*xsize[np]/xbin);
+                        }
+                }
+
+		// edited here to allow >2 windows - SL (18/7/2012)
+		// multiply time to shift one row into serial register by number of rows for total readout time
+                double[] readout = new double[numEnable];
+		for(int np=0; np<numEnable; np++) readout[np]=0.0;
+                if(isDriftMode){
+                        readout[0] = (dysize/ybin) * line_read[0];
+                }else{
+                        for(int np=0; np<numEnable; np++){
+			    readout[np] = (ysize[np]/ybin) * line_read[np];
+                        }
+                }
 
 		// now get the total time to read out one exposure.
+		// edited here to allow >2 windows - SL (18/7/2012)
 		double cycleTime, frameRate, expTime, deadTime, dutyCycle;
-		cycleTime = expose_delay + clear_time + frame_transfer + yshift_1 + yshift_2 + 
-		    line_clear1 + line_clear2 + line_read1 + line_read2 + readout_1 + readout_2;
-		frameRate = 1.0/cycleTime;
-		expTime = cycleTime - frame_transfer;
-		deadTime = cycleTime - expTime;
-		dutyCycle = 100.0*expTime/cycleTime;
+		cycleTime = expose_delay + clear_time + frame_transfer;
+		if(isDriftMode){
+		    cycleTime += pshift*VCLOCK+yshift[0]+line_clear[0]+readout[0];
+		}else{
+		    for(int np=0; np<numEnable; np++){
+			cycleTime += yshift[np] + line_clear[np] + readout[np];
+		    }
+		}
 
+		frameRate = 1.0/cycleTime;
+		if(lclear){
+		    expTime = expose_delay;
+		}else{
+		    expTime   = cycleTime - frame_transfer;
+		}
+		deadTime  = cycleTime - expTime;
+		dutyCycle = 100.0*expTime/cycleTime;
+		
 		_frameRate.setText(round(frameRate,3));
 		_cycleTime.setText(round(cycleTime,3));
 		_dutyCycle.setText(round(dutyCycle,2));
@@ -1415,24 +1690,32 @@ private JMenu createFileMenu() {
     // Modifies window locations so that a full frame NxM binned window can
     // be used as a bias. Does so by ensuring no gap in the middle of the CCDs
     private boolean _syncWindows() {
-	if(isValid(true)){
-	    try {
-		// 544 and 514 are based on the start pixel of 33,3 (+512) given by Derek
-		for(int i=0; i<numEnable; i++){
-		    _singleWindows.setXstartText(i, Integer.toString(_syncStart(_singleWindows.getXstart(i), xbin, 1,  1072, 544)) );
-		    _singleWindows.setYstartText(i, Integer.toString(_syncStart(_singleWindows.getYstart(i), ybin, 1,  1072, 514)) );
-		}
-		for(int i=1; i<numEnable; i++){
-		    _singleWindows.setXstartText(i, Integer.toString(_singleWindows.getXstart(0)));
-		    _singleWindows.setNxText(i, Integer.toString(_singleWindows.getNx(0)));
+    	try {
+		if(driftModeEnabled.isSelected()){
+		    // 544 and 514 are based on the start pixel of 33,3 (+512) given by Derek, modified to the new output-independent
+		    // coords, 544 becomes 528 15/06/09
+		    _windowPairs.setXleftText( 0,Integer.toString(_syncStart(_windowPairs.getXleft(0),  xbin, 1, 1056, 528)) );
+		    _windowPairs.setXrightText(0,Integer.toString(_syncStart(_windowPairs.getXright(0), xbin, 1, 1056, 528)) );
+		    _windowPairs.setYstartText(0,Integer.toString(_syncStart(_windowPairs.getYstart(0), ybin, 1, 1072, 514)) );
+		}else{
+		    // 544 and 514 are based on the start pixel of 33,3 (+512) given by Derek, modified to the new output-independent
+		    // coords, 544 becomes 528 15/06/09
+		    for(int i=0; i<numEnable; i++){
+			_singleWindows.setXstartText(i, Integer.toString(_syncStart(_singleWindows.getXstart(i), xbin, 1,  1056, 528)) );
+			_singleWindows.setYstartText(i, Integer.toString(_syncStart(_singleWindows.getYstart(i), ybin, 1,  1072, 514)) );
+		    }
+		    // lines up all windows - have disabled this at Thai 2.4m - SL (29/8/2012)
+		    if(!_telescope.name.equals("TNO")){
+			for(int i=1; i<numEnable; i++){
+			    _singleWindows.setXstartText(i, Integer.toString(_singleWindows.getXstart(0)));
+			    _singleWindows.setNxText(i, Integer.toString(_singleWindows.getNx(0)));
+			}
+		    }
 		}
 		return true;
-	    }
-	    catch(final Exception e){
+		}catch(Exception e){
 		return false;
-	    }
-	}
-	return true;
+		}		
     }
 
     // Synchronises window so that the binned pixels end at ref and start at ref+1
@@ -1446,25 +1729,35 @@ private JMenu createFileMenu() {
 
     // Checks whether windows are synchronised
     private boolean _areSynchronised(){
-	if(isValid(false)){
-	    try{ 
-		// Numbers here come from the 33,3 start pixel from Derek + 512
-		for(int i=0; i<numEnable; i++){
-		    if((545 - _singleWindows.getXstart(i)) % xbin != 0) return false;
-		    if((515 - _singleWindows.getYstart(i)) % ybin != 0) return false;
+		if(isValid(false)){
+			try{ 
+				if(driftModeEnabled.isSelected()){
+					// Numbers here come from the 33,3 start pixel from Derek + 512, modified to output independent coords
+					// 15/06/09
+					if((529 - _windowPairs.getXleft(0))  % xbin != 0) return false;
+					if((529 - _windowPairs.getXright(0)) % xbin != 0) return false;
+					if((515 - _windowPairs.getYstart(0)) % ybin != 0) return false;
+				}else{
+					// Numbers here come from the 33,3 start pixel from Derek + 512, modified to output independent coords
+					// 15/06/09
+					for(int i=0; i<numEnable; i++){
+						if((529 - _singleWindows.getXstart(i)) % xbin != 0) return false;
+						if((515 - _singleWindows.getYstart(i)) % ybin != 0) return false;
+					}
+					// returns false if all windows are not at same xstart and Nx - disabled for TNO - SL (29/8/2012)
+					if(!_telescope.name.equals("TNO")){
+						for(int i=1; i<numEnable; i++){
+							if(_singleWindows.getXstart(i) != _singleWindows.getXstart(0)) return false;
+							if(_singleWindows.getNx(i)     != _singleWindows.getNx(0))     return false;
+						}
+					}
+				}
+				return true;
+			}catch(final Exception e){
+				return false;
+			}
 		}
-		
-		for(int i=1; i<numEnable; i++){
-		    if(_singleWindows.getXstart(i) != _singleWindows.getXstart(0)) return false;
-		    if(_singleWindows.getNx(i)     != _singleWindows.getNx(0))     return false;
-		}
-		return true;
-	    }
-	    catch(Exception e){
 		return false;
-	    }
-	}
-	return true;
     }
 
     //------------------------------------------------------------------------------------------------------------------------------------------
@@ -1532,10 +1825,18 @@ private JMenu createFileMenu() {
     //------------------------------------------------------------------------------------------------------------------------------------------
     // Enables the labels for the windows/window pairs
     private void _setWinLabels(boolean enable){
-	xstartLabel.setEnabled(enable);
-	ystartLabel.setEnabled(enable);
-	nxLabel.setEnabled(enable);
-	nyLabel.setEnabled(enable);
+	if(driftModeEnabled.isSelected()){
+	    xleftLabel.setEnabled(enable);
+	    xrightLabel.setEnabled(enable);
+	    ystartLabel2.setEnabled(enable);
+	    nxLabel2.setEnabled(enable);
+	    nyLabel2.setEnabled(enable);
+	}else{
+	    xstartLabel.setEnabled(enable);
+	    ystartLabel.setEnabled(enable);
+	    nxLabel.setEnabled(enable);
+	    nyLabel.setEnabled(enable);
+	}
     }    
     //------------------------------------------------------------------------------------------------------------------------------------------
 	    
@@ -1556,7 +1857,12 @@ private JMenu createFileMenu() {
 	    hvGain    = hvGainText.getValue();
 	    numWin    = numWinText.getValue();
 	    setNumEnable();
-	    _validStatus = _singleWindows.isValid(xbin, ybin, numEnable, loud);
+		if(driftModeEnabled.isSelected()){
+		// note number of windows hard coded to one for drift mode!
+			_validStatus = _windowPairs.isValid(xbin, ybin, 1, loud);
+	    }else{
+			_validStatus = _singleWindows.isValid(xbin, ybin, numEnable, loud);
+	    };
 	    
 	}
 	catch(final Exception e){
@@ -1585,17 +1891,17 @@ private JMenu createFileMenu() {
     // Load the configuration file and set telescope information
     public void loadConfig() throws Exception {
 
-	// Set the current telescope 
-	// first set to hard coded defaults
-	_telescope = TELESCOPE_DATA;
+		// Set the current telescope 
+		// first set to hard coded defaults
+		_telescope = TELESCOPE_DATA;
         
-	// now read in user set preferences if available
-	_telescope.name       = _telPref.get("Name",     TELESCOPE_DATA.name);
-	_telescope.plateScale = _telPref.getDouble("Plate Scale", TELESCOPE_DATA.plateScale);
-	_telescope.flipped    = _telPref.getBoolean("Flip E-W", TELESCOPE_DATA.flipped);
-	_telescope.delta_pa   = _telPref.getDouble("Delta PA", TELESCOPE_DATA.delta_pa);
-	_telescope.delta_x    = _telPref.getDouble("Delta X",  TELESCOPE_DATA.delta_x);
-	_telescope.delta_y    = _telPref.getDouble("Delta Y",  TELESCOPE_DATA.delta_y);   
+		// now read in user set preferences if available
+		_telescope.name       = _telPref.get("Name",     TELESCOPE_DATA.name);
+		_telescope.plateScale = _telPref.getDouble("Plate Scale", TELESCOPE_DATA.plateScale);
+		_telescope.flipped    = _telPref.getBoolean("Flip E-W", TELESCOPE_DATA.flipped);
+		_telescope.delta_pa   = _telPref.getDouble("Delta PA", TELESCOPE_DATA.delta_pa);
+		_telescope.delta_x    = _telPref.getDouble("Delta X",  TELESCOPE_DATA.delta_x);
+		_telescope.delta_y    = _telPref.getDouble("Delta Y",  TELESCOPE_DATA.delta_y);   
     }
     //------------------------------------------------------------------------------------------------------------------------------------------
 

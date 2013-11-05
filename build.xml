@@ -32,6 +32,7 @@
     	<jar destfile="${jar.dir}/${ant.project.name}.jar" basedir="build/classes">
     		<manifest>
     			<attribute name="Main-Class" value="usfinder.usfinder"/>
+    			<attribute name="Permissions" value="all-permissions"/>
     			<attribute name="Class-Path" value="lib/Aladin.jar lib/swing-layout-1.0.3.jar"/>
     		</manifest>
     	</jar>

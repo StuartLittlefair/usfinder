@@ -20,13 +20,13 @@ import util.*;
 public class SingleWindows {
 
     // Number of windows to handle 
-    private static final int NWIN = 2;
+    private static final int NWIN = 4;
 
     // Initial values
-    private static final int[] XSTART  = {200, 200};
-    private static final int[] YSTART  = {101, 401};
-    private static final int[] NX      = {500, 500};
-    private static final int[] NY      = { 50,  50};
+    private static final int[] XSTART  = {200, 200, 200, 200};
+    private static final int[] YSTART  = {101, 401, 601, 801};
+    private static final int[] NX      = {500, 500, 500, 500};
+    private static final int[] NY      = { 50,  50,  50,  50};
 
     private JLabel[]           winLabel    = new JLabel[NWIN];
     private IntegerTextField[] xstartText  = new IntegerTextField[NWIN];
@@ -47,10 +47,10 @@ public class SingleWindows {
 	for(int i=0; i<NWIN; i++){
 	    winLabel[i]   = new JLabel("Window " + (i+1));
 	    winLabel[i].setBackground(backColour);
-	    xstartText[i]  = new IntegerTextField(XSTART[i],   1, 1024, 1,    "xstart, window "  + (i+1), true, backColour, errorColour, 4);
-	    ystartText[i]  = new IntegerTextField(YSTART[i],   1, 1024, 1,    "ystart, window " + (i+1), true, backColour, errorColour, 4);
-	    nxText[i]      = new IntegerTextField(NX[i],       1, 1024, xbin, "nx, window "     + (i+1), true, backColour, errorColour, 4);
-	    nyText[i]      = new IntegerTextField(NY[i],       1, 1024, ybin, "ny, window "     + (i+1), true, backColour, errorColour, 4);
+	    xstartText[i]  = new IntegerTextField(XSTART[i],   1, 1056, 1,    "xstart, window "  + (i+1), true, backColour, errorColour, 4);
+	    ystartText[i]  = new IntegerTextField(YSTART[i],   1, 1072, 1,    "ystart, window " + (i+1), true, backColour, errorColour, 4);
+	    nxText[i]      = new IntegerTextField(NX[i],       1, 1056, xbin, "nx, window "     + (i+1), true, backColour, errorColour, 4);
+	    nyText[i]      = new IntegerTextField(NY[i],       1, 1072, ybin, "ny, window "     + (i+1), true, backColour, errorColour, 4);
 
 	    int xpos = 0;
 	    _addComponent( gbLayout, panel, winLabel[i],   xpos++, ypos,  GridBagConstraints.WEST);
@@ -241,6 +241,20 @@ public class SingleWindows {
 	}
     }	
 
+    public void setVisible(boolean vis){
+	for(int i=0; i<NWIN; i++){
+	    winLabel[i].setVisible(vis);
+	    xstartText[i].setVisible(vis);
+	    ystartText[i].setVisible(vis);
+	    nxText[i].setVisible(vis);
+	    nyText[i].setVisible(vis);
+	    xstartText[i].setVisible(vis);
+	    ystartText[i].setVisible(vis);
+	    nxText[i].setVisible(vis);
+	    nyText[i].setVisible(vis);
+	}
+    }
+    
     // Method for adding components to GridBagLayout
     private static void _addComponent (GridBagLayout gbl, Container cont, Component comp, int gridx, int gridy, int anchor){
 	GridBagConstraints gbc = new GridBagConstraints ();

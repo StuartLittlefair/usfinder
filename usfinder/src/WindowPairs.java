@@ -13,6 +13,7 @@ import java.awt.GridBagLayout;
 import java.awt.GridBagConstraints;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import java.awt.event.ActionListener;
 
 import util.*;
 
@@ -79,7 +80,17 @@ public class WindowPairs {
 	    nyText[i].setVisible(vis);
 	}
     }
-	
+    
+	public void addActionListener(ActionListener action){
+		for(int i=0; i<3; i++){
+			ystartText[i].addActionListener(action);
+			xleftText[i].addActionListener(action);
+			xrightText[i].addActionListener(action);
+			nxText[i].addActionListener(action);
+			nyText[i].addActionListener(action);
+		}
+    }
+
     /** Disable paste operations in all fields */
     public void disablePaste(){
 	for(int i=0; i<3; i++){
