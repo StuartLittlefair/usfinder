@@ -51,8 +51,12 @@ public class Tweaker extends JPanel
 	double dx     = Double.parseDouble(dxField.getText().replaceAll(",",""));
 	double dy     = Double.parseDouble(dyField.getText().replaceAll(",",""));
 
-	double theta = Math.toRadians(rotdeg - tel.delta_pa);
-
+	double theta=0.0;
+	if(tel.eastofnorth){
+		theta = Math.toRadians(rotdeg - tel.delta_pa);
+	}else{
+		theta = Math.toRadians(-rotdeg - tel.delta_pa);
+	}
 	//creating the AffineTransform instance
 	AffineTransform affineTransform = new AffineTransform();
 	// set affineTransform to rotation about center
@@ -66,8 +70,8 @@ public class Tweaker extends JPanel
 	affineTransform.transform(pixShiftInArcsec, 0, offsetsInArcsec, 0, 1);
 
 	form.setMaximumFractionDigits(ndp);	
-	oxField.setText(form.format(-offsetsInArcsec[0]));
-	oyField.setText(form.format(-offsetsInArcsec[1]));
+	oxField.setText(form.format(offsetsInArcsec[0]));
+	oyField.setText(form.format(offsetsInArcsec[1]));
 	return 1;
     }
 
