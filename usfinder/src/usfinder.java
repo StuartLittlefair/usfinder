@@ -130,7 +130,11 @@ public class usfinder extends JFrame implements VOApp,
     private JTextField _expTime        = new JTextField("", 7);
     private JTextField _dutyCycle        = new JTextField("", 7);
     private JTextField _exposureTime  = new JTextField("0", 7);
-
+    private JTextField _totalCounts      = new JTextField("", 7);
+    private JTextField _peakCounts       = new JTextField("", 7);
+    private JTextField _signalToNoise    = new JTextField("", 7);
+    private JTextField _signalToNoiseOne = new JTextField("", 7);
+    
     // Configurable values
     public static String  TELESCOPE             = null;
     public static String   WINDOW_NAME          = new String("window");
@@ -251,6 +255,12 @@ public class usfinder extends JFrame implements VOApp,
     DoubleTextField  raSecVal  = new DoubleTextField(raSec,0.0,59.99,0.1,"RA seconds", true, DEFAULT_COLOUR, ERROR_COLOUR, 5); 
     DoubleTextField  decSecVal = new DoubleTextField(decSec,0.0,59.99,0.1,"Dec seconds", true, DEFAULT_COLOUR, ERROR_COLOUR, 5); 
     DoubleTextField  paDegVal = new DoubleTextField(paDeg,  0.0,359.9,0.3,"Position Angle",    true, DEFAULT_COLOUR, ERROR_COLOUR, 5);
+
+    // Fields for signal-to-noise estimates
+    private static DoubleTextField _magnitudeText  = new DoubleTextField(18.0, 5.,  35., 0.1,  "Target magnitude",    true, DEFAULT_COLOUR, ERROR_COLOUR, 6);
+    private static DoubleTextField _seeingText     = new DoubleTextField( 1.0, 0.2, 20., 0.1,  "Seeing, FWHM arcsec", true, DEFAULT_COLOUR, ERROR_COLOUR, 6);
+    private static DoubleTextField _airmassText    = new DoubleTextField(1.5, 1.0, 5.0,  0.05, "Airmass", true, DEFAULT_COLOUR, ERROR_COLOUR, 6);
+	private boolean _magInfo     = true;
 
     // handle action performed events
     public void actionPerformed(ActionEvent e){
@@ -405,10 +415,31 @@ public class usfinder extends JFrame implements VOApp,
 	    
 	    // Some horizontal space between the left- and right-hand panels
 	    addComponent( container, Box.createHorizontalStrut(30), 1, 0,  1, 1, GridBagConstraints.NONE, GridBagConstraints.WEST);
-	    addComponent( container, Box.createHorizontalStrut(30), 1, 2,  1, 1, GridBagConstraints.NONE, GridBagConstraints.WEST);
-	    
+ 
 	    // Top-right panel defines the window parameters
 	    addComponent( container, createWindowPanel(), 2, 0,  1, 1, GridBagConstraints.NONE, GridBagConstraints.WEST);
+	   
+	   	// some vertical space between the top and bottom panels
+	   	addComponent( container, Box.createVerticalStrut(5), 0, 1, 3, 1, GridBagConstraints.NONE, GridBagConstraints.WEST);
+
+		// Horizontal separator across whole GUI to separate essential (above) from nice-to-have (below)
+	    JSeparator hsep = new JSeparator();
+	    hsep.setBackground(SEPARATOR_BACK);
+	    hsep.setForeground(SEPARATOR_FORE);
+	    addComponent( container, hsep, 0, 2,  3, 1, GridBagConstraints.NONE, GridBagConstraints.CENTER);
+	    Dimension hdim = container.getPreferredSize();
+	    hsep.setPreferredSize(new Dimension(hdim.width, SEPARATOR_WIDTH));
+
+	   	// some vertical space between the top and bottom panels
+	   	addComponent( container, Box.createVerticalStrut(5), 0, 3, 3, 1, GridBagConstraints.NONE, GridBagConstraints.WEST);
+
+		// signal to noise and timing panel
+	    addComponent( container, createSNPanel(),     0, 4, 1, 1, GridBagConstraints.NONE, GridBagConstraints.WEST);
+
+		// Some horizontal space between the left- and right-hand panels
+	    addComponent( container, Box.createHorizontalStrut(30), 1, 4,  1, 1, GridBagConstraints.NONE, GridBagConstraints.WEST);
+
+	    addComponent( container, createTargetPanel(), 2, 4, 1, 1, GridBagConstraints.NONE, GridBagConstraints.WEST);
 	    
 	    // Update the colours while ensuring that paste operations remian disabled in numeric fields
 	    updateGUI();
@@ -1197,6 +1228,124 @@ public class usfinder extends JFrame implements VOApp,
 	return _windowPanel;
     }
 
+    /** Creates the panel defining the target information */
+    public Component createTargetPanel(){
+    
+		int ypos = 0;
+	
+		// Target info panel
+		JPanel _targetPanel = new JPanel(gbLayout);
+	
+		JLabel bandLabel = new JLabel("Bandpass");
+		bandLabel.setToolTipText("Bandpass for estimating counts and signal-to-noise");
+		addComponent( _targetPanel, bandLabel,     0, ypos,  1, 1, GridBagConstraints.NONE, GridBagConstraints.WEST);
+	
+		// Create radio buttons for the filters
+		JRadioButton uButton = new JRadioButton("u'     ");
+		uButton.addActionListener(new ActionListener(){public void actionPerformed(ActionEvent e){_filterIndex = 0;}});
+		addComponent( _targetPanel, uButton,     1, ypos,  1, 1, GridBagConstraints.NONE, GridBagConstraints.WEST);
+	
+		JRadioButton gButton = new JRadioButton("g'     ");
+		gButton.setSelected(true);
+		gButton.addActionListener(new ActionListener(){public void actionPerformed(ActionEvent e){_filterIndex = 1;}});
+		addComponent( _targetPanel, gButton,     2, ypos,  1, 1, GridBagConstraints.NONE, GridBagConstraints.WEST);
+	
+		JRadioButton rButton = new JRadioButton("r'     ");
+		rButton.addActionListener(new ActionListener(){public void actionPerformed(ActionEvent e){_filterIndex = 2;}});
+		addComponent( _targetPanel, rButton,     3, ypos,  1, 1, GridBagConstraints.NONE, GridBagConstraints.WEST);
+	
+		JRadioButton iButton = new JRadioButton("i'     ");
+		iButton.addActionListener(new ActionListener(){public void actionPerformed(ActionEvent e){_filterIndex = 3;}});
+		addComponent( _targetPanel, iButton,     4, ypos,  1, 1, GridBagConstraints.NONE, GridBagConstraints.WEST);
+	
+		JRadioButton zButton = new JRadioButton("z'");
+		zButton.addActionListener(new ActionListener(){public void actionPerformed(ActionEvent e){_filterIndex = 4;}});
+		addComponent( _targetPanel, zButton,     5, ypos++,  1, 1, GridBagConstraints.NONE, GridBagConstraints.WEST);
+	
+		// Group the radio buttons.
+		ButtonGroup fGroup = new ButtonGroup();
+		fGroup.add(uButton);
+		fGroup.add(gButton);
+		fGroup.add(rButton);
+		fGroup.add(iButton);
+		fGroup.add(zButton);
+
+		JLabel magLabel = new JLabel("Magnitude");
+		magLabel.setToolTipText("Magnitude at airmass=0 for estimating counts and signal-to-noise");
+		addComponent( _targetPanel, magLabel,     0, ypos,  1, 1, GridBagConstraints.NONE, GridBagConstraints.WEST);
+		addComponent( _targetPanel, _magnitudeText,     1, ypos++,  5, 1, GridBagConstraints.NONE, GridBagConstraints.WEST);
+
+		JLabel seeingLabel = new JLabel("Seeing (FWHM, arcsec)     ");
+		seeingLabel.setToolTipText("FWHM seeing. Aperture assumed to be 1.5 times this.");
+		addComponent( _targetPanel, seeingLabel,     0, ypos,  1, 1, GridBagConstraints.NONE, GridBagConstraints.WEST);
+		addComponent( _targetPanel, _seeingText,     1, ypos++,  5, 1, GridBagConstraints.NONE, GridBagConstraints.WEST);
+	
+		JLabel skyBackLabel = new JLabel("Sky brightness");
+		addComponent( _targetPanel, skyBackLabel,     0, ypos,  1, 1, GridBagConstraints.NONE, GridBagConstraints.WEST);
+
+		// Create radio buttons for the sky brightness
+		JRadioButton darkButton = new JRadioButton("dark");
+		darkButton.addActionListener(new ActionListener(){public void actionPerformed(ActionEvent e){_skyBrightIndex = 0;}});
+		addComponent( _targetPanel, darkButton,     1, ypos,  1, 1, GridBagConstraints.NONE, GridBagConstraints.WEST);
+	
+		JRadioButton greyButton = new JRadioButton("grey");
+		greyButton.setSelected(true);
+		greyButton.addActionListener(new ActionListener(){public void actionPerformed(ActionEvent e){_skyBrightIndex = 1;}});
+		addComponent( _targetPanel, greyButton,     2, ypos,  1, 1, GridBagConstraints.NONE, GridBagConstraints.WEST);
+	
+		JRadioButton brightButton = new JRadioButton("bright");
+		brightButton.addActionListener(new ActionListener(){public void actionPerformed(ActionEvent e){_skyBrightIndex = 2;}});
+		addComponent( _targetPanel, brightButton,     3, ypos++,  1, 1, GridBagConstraints.NONE, GridBagConstraints.WEST);
+	
+		// Group the radio buttons.
+		ButtonGroup sGroup = new ButtonGroup();
+		sGroup.add(darkButton);
+		sGroup.add(greyButton);
+		sGroup.add(brightButton);
+
+		JLabel airmassLabel = new JLabel("Airmass");
+		addComponent( _targetPanel, airmassLabel,     0, ypos,  1, 1, GridBagConstraints.NONE, GridBagConstraints.WEST);
+		addComponent( _targetPanel, _airmassText,     1, ypos++,  5, 1, GridBagConstraints.NONE, GridBagConstraints.WEST);
+
+		_targetPanel.setBorder(new EmptyBorder(15,15,15,15));	
+		return _targetPanel;
+		}
+	
+    /** Creates the panel signal-to-noise information */
+    public Component createSNPanel(){
+	
+		// Timing info panel
+		JPanel _timingPanel = new JPanel(gbLayout);
+	
+		int ypos = 0;
+	
+		JLabel totalLabel = new JLabel("Total counts/exposure");
+		totalLabel.setToolTipText("Total counts/exposure in object, for an infinite radius photometric aperture");
+		addComponent( _timingPanel, totalLabel, 0, ypos,  1, 1, GridBagConstraints.NONE, GridBagConstraints.WEST);
+		_totalCounts.setEditable(false);
+		addComponent( _timingPanel, _totalCounts, 1, ypos++,  1, 1, GridBagConstraints.NONE, GridBagConstraints.WEST);
+	
+		JLabel peakLabel = new JLabel("Peak counts/exposure  ");
+		peakLabel.setToolTipText("In a binned pixel");
+		addComponent( _timingPanel,  peakLabel, 0, ypos,  1, 1, GridBagConstraints.NONE, GridBagConstraints.WEST);
+		_peakCounts.setEditable(false);
+		addComponent( _timingPanel, _peakCounts, 1, ypos++,  1, 1, GridBagConstraints.NONE, GridBagConstraints.WEST);
+	
+		JLabel stonLabelOne = new JLabel("S-to-N");
+		stonLabelOne.setToolTipText("Signal-to-noise in one exposure, 1.5*seeing aperture");
+		addComponent( _timingPanel,  stonLabelOne, 0, ypos,  1, 1, GridBagConstraints.NONE, GridBagConstraints.WEST);
+		_signalToNoiseOne.setEditable(false);
+		addComponent( _timingPanel, _signalToNoiseOne, 1, ypos++,  1, 1, GridBagConstraints.NONE, GridBagConstraints.WEST);
+	
+		JLabel stonLabel = new JLabel("S-to-N, 3 hr");
+		stonLabel.setToolTipText("Total signal-to-noise in a 3 hour run, 1.5*seeing aperture");
+		addComponent( _timingPanel,  stonLabel, 0, ypos,  1, 1, GridBagConstraints.NONE, GridBagConstraints.WEST);
+		_signalToNoise.setEditable(false);
+		addComponent( _timingPanel, _signalToNoise, 1, ypos++,  1, 1, GridBagConstraints.NONE, GridBagConstraints.WEST);
+
+		_timingPanel.setBorder(new EmptyBorder(15,15,15,15));	
+		return _timingPanel;
+    }
 
 /** Creates the "Telescope" menu entry **/
 private JMenu createTelMenu() {
@@ -1592,7 +1741,6 @@ private JMenu createFileMenu() {
 		    dxleft=tmp;
 		}
 		    
-
 		// convert timing parameters to seconds
 		double expose_delay = expose*1.0e-4;
 
@@ -1758,6 +1906,118 @@ private JMenu createFileMenu() {
 		_cycleTime.setText(round(cycleTime,3));
 		_dutyCycle.setText(round(dutyCycle,2));
 		_expTime.setText(round(expTime,3));
+		
+		// Signal-to-noise info. Not a disaster if we fail to compute this, so 
+		// make sure that we can recover from failures with a try block
+		final double AP_SCALE=1.5;
+		double zero = 0., sky = 0., skyTot = 0., gain = 0., read = 0., darkTot = 0.;
+		double total = 0., peak = 0., correct = 0., signal = 0., readTot = 0., seeing = 0.;
+		double noise = 1., skyPerPixel = 0., narcsec = 0., npix = 0., signalToNoise = 0.;
+		try{
+			// Get the parameters for magnitudes
+		    zero    = _telescope.zeroPoint[_filterIndex];
+		    final double mag     = _magnitudeText.getValue();
+		    seeing  = _seeingText.getValue();
+		    sky     = SKY_BRIGHT[_skyBrightIndex][_filterIndex];
+		    final double airmass = _airmassText.getValue();
+		    if(readSpeed.equals("Fast")){
+				if(lnormal){
+					gain = GAIN_NORM_FAST;
+					read = RNO_NORM_FAST;
+				}else{
+					gain = GAIN_AV_FAST;
+					read = RNO_AV_FAST;
+				}
+			}else if(readSpeed.equals("Medium")){
+				if(lnormal){
+					gain = GAIN_NORM_MED;
+					read = RNO_NORM_MED;
+				}else{
+					gain = GAIN_AV_MED;
+					read = RNO_AV_MED;
+				}
+			}else if(readSpeed.equals("Slow")){
+				if(lnormal){
+					gain = GAIN_NORM_SLOW;
+					read = RNO_NORM_SLOW;
+				}else{
+					gain = GAIN_AV_SLOW;
+					read = RNO_AV_SLOW;
+				}
+			}
+			double plateScale = _telescope.plateScale;
+			// Now calculate expected electrons 
+		    total = Math.pow(10.,(zero-mag-airmass*EXTINCTION[_filterIndex])/2.5)*expTime;
+		    peak  = total*xbin*ybin*Math.pow(plateScale/(seeing/2.3548),2)/(2.*Math.PI);
+
+		    // Work out fraction of flux in aperture with radius AP_SCALE*seeing
+		    correct      = 1. - Math.exp(-Math.pow(2.3548*AP_SCALE, 2)/2.);
+		    
+		    // expected sky e- per arcsec
+		    double skyPerArcsec = Math.pow(10.,(zero-sky)/2.5)*expTime;
+		    skyPerPixel = skyPerArcsec*Math.pow(plateScale,2)*xbin*ybin;
+		    narcsec     = Math.PI*Math.pow(AP_SCALE*seeing,2);
+		    skyTot      = skyPerArcsec*narcsec;
+		    npix        = Math.PI*Math.pow(AP_SCALE*seeing/plateScale,2)/xbin/ybin;
+
+		    signal      = correct*total; // in electrons
+		    darkTot     = npix*DARK_E*expTime; // in electrons
+		    readTot     = npix*Math.pow(read, 2); // in electrons
+		    double cic = 0.0;
+		    if (! lnormal){
+				cic = CIC;
+		    }
+		    if(lnormal){
+				noise = Math.sqrt(readTot + darkTot + skyTot + signal + cic); // in electrons
+		    }else{
+			// assume high gain observations in proportional mode
+				noise = Math.sqrt(readTot/Math.pow(AVALANCHE_GAIN_9,2) + 2.0*(darkTot + skyTot + signal) + cic); // in electrons
+		    }
+		    // Now compute signal-to-noise in 3 hour seconds run
+		    signalToNoise = signal/noise*Math.sqrt(3*3600./cycleTime);
+
+		    //if using the avalanche mode, check that the signal level is safe. 
+		    //A single electron entering the avalanche register results in a distribution
+		    //of electrons at the output with mean value given by the parameter
+		    //avalanche_gain. The distribution is an exponential, hence the probability
+		    //of obtaining an amplification n times higher than the mean is given
+		    //by e**-n. A value of 3/5 for n is adopted here for warning/safety, which will occur
+		    //once in every ~20/100 amplifications
+
+		    // convert from electrons to counts
+		    total /= gain;
+		    peak /= gain;
+
+		    _totalCounts.setText(round(total,1));
+		    
+		    peak = (int)(100.*peak+0.5)/100.;
+		    _peakCounts.setText(round(peak,2));
+		    double warn=25000;
+		    double sat=60000;
+		    if(! lnormal){
+				sat = AVALANCHE_SATURATE/AVALANCHE_GAIN_9/5/gain;
+				warn = AVALANCHE_SATURATE/AVALANCHE_GAIN_9/3/gain;
+		    }
+		    if(peak > sat){
+				_peakCounts.setBackground(ERROR_COLOUR);
+		    }else if(peak > warn){
+				_peakCounts.setBackground(WARNING_COLOUR);
+		    }else{
+				_peakCounts.setBackground(DEFAULT_COLOUR);
+		    }
+		    
+		    _signalToNoise.setText(round(signalToNoise,1));
+		    _signalToNoiseOne.setText(round(signal/noise,2));
+		    
+		    _magInfo = true;
+		}catch(Exception err){
+			_totalCounts.setText("");
+		    _peakCounts.setText("");
+		    if(_magInfo)
+			System.out.println(err.toString());
+		    _magInfo = false;
+		}		
+		
 	    }
 	}
 	catch(Exception e){
