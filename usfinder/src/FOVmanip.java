@@ -489,11 +489,11 @@ public class FOVmanip {
 		// normally we set the <TD> datatags here to the 4 corners of the window
 		double x1,x2,x3,x4,y1,y2;
 		try {
-			x1 = xoff+dir*(512-win.getXleft(0))*PlateScale; 
+			x1 = xoff+dir*(528-win.getXleft(0))*PlateScale; 
 			x3 = (x1 - dir*win.getNx(0)*PlateScale);
-			y1 = yoff+(win.getYstart(0)-512)*PlateScale; 
+			y1 = yoff+(win.getYstart(0)-536)*PlateScale; 
 			y2 = y1 + win.getNy(0)*PlateScale;
-			x2 = xoff+dir*(512-win.getXright(0))*PlateScale; 
+			x2 = xoff+dir*(528-win.getXright(0))*PlateScale; 
 			x4 = (x2 - dir*win.getNx(0)*PlateScale);
 			nodelist = elem.getElementsByTagName("TD");
 			nodelist.item(0).setTextContent(""+x1);
