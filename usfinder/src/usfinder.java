@@ -579,14 +579,14 @@ public class usfinder extends JFrame implements VOApp,
     	// we have to check that this was succesfull, otherwise delete the spurious catalog
     	String messg = aladin.execCommand("status");
     	if (messg.contains("NbObj   0")){
-    		aladin.execCommand("rm Select*");
+    		aladin.execCommand("rm New.cat");
     		return false;
     	}    	
-    	aladin.execCommand("set Select* Color=red");
-    	aladin.execCommand("set Select* PlaneID=Target");
+    	aladin.execCommand("set New.cat Color=red");
+    	aladin.execCommand("set New.cat PlaneID=Target");
     	aladin.execCommand("rm SMag");
     	aladin.execCommand("filter SMag {draw circle(-$[phot.mag*])}");
-	aladin.execCommand("sync");
+		aladin.execCommand("sync");
     	aladin.execCommand("filter SMag on"); 
     	return true;
     }
@@ -596,16 +596,16 @@ public class usfinder extends JFrame implements VOApp,
     	// we have to check that this was succesfull, otherwise delete the spurious catalog
     	String messg = aladin.execCommand("status");
     	if (messg.contains("NbObj   0")){
-    		aladin.execCommand("rm Select*");
+    		aladin.execCommand("rm New.cat");
     		return false;
     	}    	
-    	aladin.execCommand("set Select* PlaneID=tmp");
+    	aladin.execCommand("set New.cat PlaneID=tmp");
     	aladin.execCommand("select tmp Comp");
     	aladin.execCommand("createplane");
     	aladin.execCommand("rm Comp");
     	aladin.execCommand("rm tmp");
-    	aladin.execCommand("set Select* PlaneID=Comp");
-    	aladin.execCommand("set Comp* Color=blue");
+    	aladin.execCommand("set New.cat PlaneID=Comp");
+    	aladin.execCommand("set New.cat Color=blue");
     	aladin.execCommand("rm SMag");
     	aladin.execCommand("filter SMag {draw circle(-$[phot.mag*])}");
 	aladin.execCommand("sync");
