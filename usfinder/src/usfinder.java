@@ -2058,13 +2058,13 @@ private JMenu createFileMenu() {
 		    // coords, 544 becomes 528 15/06/09
 		    _windowPairs.setXleftText( 0,Integer.toString(_syncStart(_windowPairs.getXleft(0),  xbin, 1, 1056, 528)) );
 		    _windowPairs.setXrightText(0,Integer.toString(_syncStart(_windowPairs.getXright(0), xbin, 1, 1056, 528)) );
-		    _windowPairs.setYstartText(0,Integer.toString(_syncStart(_windowPairs.getYstart(0), ybin, 1, 1072, 514)) );
+		    _windowPairs.setYstartText(0,Integer.toString(_syncStart(_windowPairs.getYstart(0), ybin, 1, 1072, 2)) );
 		}else{
 		    // 544 and 514 are based on the start pixel of 33,3 (+512) given by Derek, modified to the new output-independent
 		    // coords, 544 becomes 528 15/06/09
 		    for(int i=0; i<numEnable; i++){
 			_singleWindows.setXstartText(i, Integer.toString(_syncStart(_singleWindows.getXstart(i), xbin, 1,  1056, 528)) );
-			_singleWindows.setYstartText(i, Integer.toString(_syncStart(_singleWindows.getYstart(i), ybin, 1,  1072, 514)) );
+			_singleWindows.setYstartText(i, Integer.toString(_syncStart(_singleWindows.getYstart(i), ybin, 1,  1072, 2)) );
 		    }
 		    // lines up all windows - have disabled this at Thai 2.4m - SL (29/8/2012)
 		    if(!_telescope.name.equals("TNO")){
@@ -2098,13 +2098,13 @@ private JMenu createFileMenu() {
 					// 15/06/09
 					if((529 - _windowPairs.getXleft(0))  % xbin != 0) return false;
 					if((529 - _windowPairs.getXright(0)) % xbin != 0) return false;
-					if((515 - _windowPairs.getYstart(0)) % ybin != 0) return false;
+					if((3 - _windowPairs.getYstart(0)) % ybin != 0) return false;
 				}else{
 					// Numbers here come from the 33,3 start pixel from Derek + 512, modified to output independent coords
 					// 15/06/09
 					for(int i=0; i<numEnable; i++){
 						if((529 - _singleWindows.getXstart(i)) % xbin != 0) return false;
-						if((515 - _singleWindows.getYstart(i)) % ybin != 0) return false;
+						if((3 - _singleWindows.getYstart(i)) % ybin != 0) return false;
 					}
 					// returns false if all windows are not at same xstart and Nx - disabled for TNO - SL (29/8/2012)
 					if(!_telescope.name.equals("TNO")){
