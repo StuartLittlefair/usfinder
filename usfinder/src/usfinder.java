@@ -38,7 +38,7 @@ public class usfinder extends JFrame implements VOApp,
         
     // Default Telescope data. See the class for a full description of the fields        
     private static final Telescope TELESCOPE_DATA = 
-    	new Telescope("TNO",    new double[] {22.71, 25.25, 25.01, 24.69, 23.81}, 0.45, false, 270.0, 5.8025, 4.431, false);
+    new Telescope("TNO",    new double[] {22.71, 25.25, 25.01, 24.69, 23.81}, 0.45, false, 270.0, 5.8025, 4.431, false);
     // persistent preferences used for changing telescope parameters    
     final Preferences _telPref = Preferences.userNodeForPackage(this.getClass());
     // The following are used to pass the telescope data around
@@ -236,7 +236,7 @@ public class usfinder extends JFrame implements VOApp,
     
     // the surveys that this tool can query
     private JComboBox surveyChoice;
-    public static String[] SURVEY_LABEL = {"DSS2-BLUE", "DSS2-RED", "DSS2-IR", "DSS1"};
+    public static String[] SURVEY_LABEL = {"DSS2-BLUE", "DSS2-RED", "DSS2-IR", "DSS2", "DSS1", "I feel lucky"};
     // string that stores the choice
     private String surveyString="DSS2-BLUE";
     
@@ -409,6 +409,7 @@ public class usfinder extends JFrame implements VOApp,
 	    // File menu
 	    menubar.add(createFileMenu());
 	    menubar.add(createTelMenu());
+	    menubar.add(createConfMenu());
 	    
 	    // Middle-left panel for displaying target and s-to-n information and timing
 	    addComponent( container, createObjPanel(), 0, 0, 1, 1, GridBagConstraints.NONE, GridBagConstraints.CENTER);
@@ -523,7 +524,9 @@ public class usfinder extends JFrame implements VOApp,
     	if(surveyString.equals("DSS2-BLUE")) aladinSurvey = "Aladin(DSS2,J)";
     	if(surveyString.equals("DSS2-RED"))  aladinSurvey = "Aladin(DSS2,F)";
     	if(surveyString.equals("DSS2-IR"))  aladinSurvey = "Aladin(DSS2,I)";
+    	if(surveyString.equals("DSS2")) aladinSurvey = "Aladin(DSS2)";
     	if(surveyString.equals("DSS1"))      aladinSurvey = "Aladin(DSS1)";
+    	if(surveyString.equals("I feel lucky"))      aladinSurvey = "Aladin";
         System.out.println("get "+ aladinSurvey+" " + aladinTarget);
     	aladin.execCommand("get "+aladinSurvey+" " + aladinTarget);
 
@@ -590,15 +593,17 @@ public class usfinder extends JFrame implements VOApp,
     	
     	// run Sextractor to detect sources in Image and draw magnitude cirlces
     	// first run status to find the active image
-    	aladin.execCommand("get Sextractor("+Image+",2,4,50000,1.2)");
-    	aladin.execCommand("sync");
-    	// rename the catalog to have an easy name
-    	aladin.execCommand("set S-ex* PlaneID=SexCat");
-    	aladin.execCommand("set SexCat Color=rgb(0,254,153)");
-    	aladin.execCommand("filter SMag {draw circle(-$[phot.mag*])}");
-    	aladin.execCommand("sync");
-    	aladin.execCommand("filter SMag on"); 
-
+    	boolean haveSex = _telPref.getBoolean("getSex",true);
+    	if(haveSex){
+            aladin.execCommand("get Sextractor("+Image+",2,4,50000,1.2)");
+            aladin.execCommand("sync");
+            // rename the catalog to have an easy name
+            aladin.execCommand("set S-ex* PlaneID=SexCat");
+            aladin.execCommand("set SexCat Color=rgb(0,254,153)");
+            aladin.execCommand("filter SMag {draw circle(-$[phot.mag*])}");
+            aladin.execCommand("sync");
+            aladin.execCommand("filter SMag on"); 
+        }
     	// switch off annoying reticle
     	aladin.execCommand("reticle off");
     	
@@ -1521,6 +1526,25 @@ private JMenu createTelMenu() {
     return telMenu;
 }
 
+//create menu for config settings
+private JMenu createConfMenu() {
+    final JMenu confMenu = new JMenu("Config");
+    final JCheckBoxMenuItem _sextractor = new JCheckBoxMenuItem("Load Sextractor catalog");
+    _sextractor.setSelected(_telPref.getBoolean("getSex",true));
+    _sextractor.addItemListener(new ItemListener(){
+        public void itemStateChanged(ItemEvent e){
+            if (e.getStateChange() == ItemEvent.DESELECTED){
+                _telPref.putBoolean("getSex",false);
+            }else{  
+                _telPref.putBoolean("getSex",true);
+            }
+        }
+        }
+    );
+    confMenu.add(_sextractor);
+    return confMenu;
+}
+
 // Create the "File" menu entry
 private JMenu createFileMenu() {
     
@@ -1742,7 +1766,7 @@ private JMenu createFileMenu() {
 		}
 		    
 		// convert timing parameters to seconds
-		double expose_delay = expose*1.0e-4;
+		double expose_delay = expose*1.0e-3;
 
 		// clear chip by VCLOCK-ing the image and storage areas
 		double clear_time;
