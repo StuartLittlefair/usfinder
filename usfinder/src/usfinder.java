@@ -518,7 +518,7 @@ public class usfinder extends JFrame implements VOApp,
 
     	// Instantiate Aladin
 		System.out.println("Starting Aladin with target" + aladinTarget);
-    	aladin = cds.aladin.Aladin.launch();    	
+    	aladin = cds.aladin.Aladin.launch("-noreleasetest");    	
     	aladin.execCommand("sync");
     	String aladinSurvey=null;
     	if(surveyString.equals("DSS2-BLUE")) aladinSurvey = "Aladin(DSS2,J)";
