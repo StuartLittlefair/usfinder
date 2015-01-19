@@ -104,22 +104,28 @@ public class SingleWindows {
 	try{
 
 	    for(int i=0; i<NWIN; i++){
-		nxText[i].setIncrement(xbin);
-		nyText[i].setIncrement(ybin);
+            nxText[i].setIncrement(xbin);
+            nyText[i].setIncrement(ybin);
 	    }
 
+        for(int i=nwin; i<NWIN; i++){
+            nxText[i].setNormal();
+            nyText[i].setNormal();
+            xstartText[i].setNormal();
+            ystartText[i].setNormal();
+        }
 	    int ntotal = 0;
 
 	    for(int i=0; i<nwin; i++){
 
-		int xstart  = xstartText[i].getValue();
-		int ystart  = ystartText[i].getValue();
-		int nx      = nxText[i].getValue();
-		int ny      = nyText[i].getValue();
+            int xstart  = xstartText[i].getValue();
+            int ystart  = ystartText[i].getValue();
+            int nx      = nxText[i].getValue();
+            int ny      = nyText[i].getValue();
 
-		// If we get here, the values are at least within
-		// range assuming that there are no windows and not accounting
-		// for window size. Now we check further ...
+            // If we get here, the values are at least within
+            // range assuming that there are no windows and not accounting
+            // for window size. Now we check further ...
 
 		if(nx % xbin != 0){
 		    nxText[i].setError();
