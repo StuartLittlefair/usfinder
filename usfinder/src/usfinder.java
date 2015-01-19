@@ -795,7 +795,7 @@ public class usfinder extends JFrame implements VOApp,
     public String execCommand(final String cmd) {
     	
 		//displayArea.append(cmd + "\n");
-
+        //System.out.println(cmd);
     	// TO-DO: take cmd and parse it to get ra and dec numbers and roll value.
     	Pattern pattern= Pattern.compile("Target=(\\d*:\\d*:\\d*\\.\\d*) ([\\+-]\\d*:\\d*:\\d*\\.\\d*)");
     	Matcher matcher = pattern.matcher(cmd);
@@ -828,7 +828,11 @@ public class usfinder extends JFrame implements VOApp,
     		matcher=pattern.matcher(toSearch);
     		if(matcher.find()){
                 double PAval = Double.parseDouble(matcher.group());
-                PAval -= _telescope.delta_pa;
+                if(_telescope.eastofnorth){
+                    PAval -= _telescope.delta_pa;
+                }else{
+                    PAval = _telescope.delta_pa-PAval;
+                }                
                 if(PAval > 360.0) PAval-=360.0;
                 if(PAval < 0.0) PAval += 360.0;
                 paDegVal.setValue(PAval);                
@@ -1401,12 +1405,13 @@ private JMenu createTelMenu() {
                                                
 					       ActionListener onEntry = new ActionListener () {
 						       public void actionPerformed(ActionEvent e){
-							   
+							   System.out.println(e.getActionCommand());
 							   if(e.getActionCommand().equals("close")){
 							       newPanel.getTopLevelAncestor().setVisible(false);
 							   }
 							   if(e.getActionCommand().equals("name")){
 							       _telPref.put("Name",nameField.getText());
+							       System.out.println(nameField.getText());
 							       telSync();
 							   }
 							   if(e.getActionCommand().equals("ps")){
