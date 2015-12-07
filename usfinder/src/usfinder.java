@@ -38,7 +38,7 @@ public class usfinder extends JFrame implements VOApp,
         
     // Default Telescope data. See the class for a full description of the fields        
     private static final Telescope TELESCOPE_DATA = 
-    new Telescope("TNO",    new double[] {22.71, 25.25, 25.01, 24.69, 23.81}, 0.45, false, 270.0, 5.8025, 4.431, false);
+    new Telescope("TNO",    new double[] {22.71, 25.25, 25.01, 24.69, 23.81}, 0.456, true, 270.0, 5.8025, 4.431, false);
     // persistent preferences used for changing telescope parameters    
     final Preferences _telPref = Preferences.userNodeForPackage(this.getClass());
     // The following are used to pass the telescope data around
